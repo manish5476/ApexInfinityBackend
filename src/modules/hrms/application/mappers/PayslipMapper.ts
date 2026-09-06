@@ -1,0 +1,104 @@
+import { IMapper } from '../../../../core/application/IMapper';
+import { Payslip, PayslipProps } from '../../domain/entities/Payslip';
+
+export class PayslipMapper implements IMapper<Payslip, any, any> {
+  public toDomain(raw: any): Payslip {
+    const props: PayslipProps = {
+      organizationId: raw.organizationId,
+      branchId: raw.branchId || undefined,
+      userId: raw.userId,
+      employeeId: raw.employeeId || undefined,
+      salaryStructureId: raw.salaryStructureId || undefined,
+      payslipNumber: raw.payslipNumber,
+      month: raw.month,
+      year: raw.year,
+      periodStart: new Date(raw.periodStart),
+      periodEnd: new Date(raw.periodEnd),
+      attendanceSnapshot: raw.attendanceSnapshot || {
+        paidDays: 30,
+        presentDays: 30,
+        leaveDays: 0,
+        unpaidLeaveDays: 0,
+        overtimeHours: 0,
+        lateCount: 0,
+      },
+      earnings: raw.earnings || [],
+      deductions: raw.deductions || [],
+      reimbursements: raw.reimbursements || [],
+      grossPay: raw.grossPay,
+      deductionTotal: raw.deductionTotal,
+      reimbursementTotal: raw.reimbursementTotal,
+      netPay: raw.netPay,
+      currency: raw.currency || 'INR',
+      paymentStatus: raw.paymentStatus || 'pending',
+      paidAt: raw.paidAt ? new Date(raw.paidAt) : undefined,
+      paymentMode: raw.paymentMode || undefined,
+      referenceNo: raw.referenceNo || undefined,
+      status: raw.status || 'draft',
+      approvedBy: raw.approvedBy || undefined,
+      approvedAt: raw.approvedAt ? new Date(raw.approvedAt) : undefined,
+      lockedAt: raw.lockedAt ? new Date(raw.lockedAt) : undefined,
+      createdAt: new Date(raw.createdAt),
+      updatedAt: new Date(raw.updatedAt),
+    };
+    return Payslip.reconstitute(raw._id || raw.id, props);
+  }
+
+  public toPersistence(domain: Payslip): Record<string, unknown> {
+    return {
+      _id: domain.id,
+      organizationId: domain.organizationId,
+      branchId: domain.branchId,
+      userId: domain.userId,
+      employeeId: domain.employeeId,
+      salaryStructureId: domain.salaryStructureId,
+      payslipNumber: domain.payslipNumber,
+      month: domain.month,
+      year: domain.year,
+      periodStart: domain.periodStart,
+      periodEnd: domain.periodEnd,
+      attendanceSnapshot: domain.attendanceSnapshot,
+      earnings: domain.earnings,
+      deductions: domain.deductions,
+      reimbursements: domain.reimbursements,
+      grossPay: domain.grossPay,
+      deductionTotal: domain.deductionTotal,
+      reimbursementTotal: domain.reimbursementTotal,
+      netPay: domain.netPay,
+      currency: domain.currency,
+      paymentStatus: domain.paymentStatus,
+      status: domain.status,
+      createdAt: domain.createdAt,
+      updatedAt: domain.updatedAt,
+    };
+  }
+
+  public toDto(domain: Payslip): any {
+    return {
+      id: domain.id,
+      organizationId: domain.organizationId,
+      branchId: domain.branchId,
+      userId: domain.userId,
+      employeeId: domain.employeeId,
+      salaryStructureId: domain.salaryStructureId,
+      payslipNumber: domain.payslipNumber,
+      month: domain.month,
+      year: domain.year,
+      periodStart: domain.periodStart.toISOString(),
+      periodEnd: domain.periodEnd.toISOString(),
+      attendanceSnapshot: domain.attendanceSnapshot,
+      earnings: domain.earnings,
+      deductions: domain.deductions,
+      reimbursements: domain.reimbursements,
+      grossPay: domain.grossPay,
+      deductionTotal: domain.deductionTotal,
+      reimbursementTotal: domain.reimbursementTotal,
+      netPay: domain.netPay,
+      currency: domain.currency,
+      paymentStatus: domain.paymentStatus,
+      status: domain.status,
+      createdAt: domain.createdAt.toISOString(),
+      updatedAt: domain.updatedAt.toISOString(),
+    };
+  }
+}
