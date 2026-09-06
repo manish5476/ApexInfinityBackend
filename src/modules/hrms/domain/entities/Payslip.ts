@@ -274,6 +274,18 @@ export class Payslip extends Entity<string> {
     return this._paymentStatus;
   }
 
+  public get paymentMode(): string | undefined {
+    return this._paymentMode;
+  }
+
+  public get referenceNo(): string | undefined {
+    return this._referenceNo;
+  }
+
+  public get paidAt(): Date | undefined {
+    return this._paidAt;
+  }
+
   public get status(): PayslipStatus {
     return this._status;
   }

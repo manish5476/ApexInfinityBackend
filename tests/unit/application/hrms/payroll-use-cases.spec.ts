@@ -109,7 +109,7 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       await employeeRepo.save(emp);
 
       // Create salary structure
-      await useCases.createSalaryStructure(orgId, {
+      const struct = await useCases.createSalaryStructure(orgId, {
         userId,
         title: 'General Employee Compensation',
         components: [
@@ -118,6 +118,7 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
           { code: 'PF', name: 'Provident Fund', category: 'deduction', calculationType: 'fixed', amount: 1800, taxable: false },
         ],
       });
+      await useCases.updateSalaryStructure(orgId, struct.id, { status: 'active' });
     });
 
     it('should run monthly payroll and generate payslip with net salary calculation', async () => {
@@ -135,7 +136,7 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       expect(payslip.month).toBe(9);
       expect(payslip.year).toBe(2026);
       expect(payslip.grossPay).toBe(55000);
-      expect(payslip.totalDeductions).toBe(1800);
+      expect(payslip.deductionTotal).toBe(1800);
       expect(payslip.netPay).toBe(53200);
       expect(payslip.status).toBe('draft');
     });
@@ -157,7 +158,7 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       expect(paid.status).toBe('paid');
       expect(paid.paymentMode).toBe('bank_transfer');
       expect(paid.referenceNo).toBe('UTR-987654321');
-      expect(paid.paymentDate).toBeDefined();
+      expect(paid.paidAt).toBeDefined();
     });
 
     it('should bulk update payslips status', async () => {
