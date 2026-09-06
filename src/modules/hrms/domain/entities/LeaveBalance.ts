@@ -218,7 +218,13 @@ export class LeaveBalance extends Entity<string> {
   public creditLeave(type: LeaveType, amount: number): void {
     if (amount <= 0) throw new DomainError('Credit amount must be greater than zero.');
     const bucket = this.getBucket(type);
-    bucket.total += amount;
+    if (bucket.used >= amount) {
+      bucket.used -= amount;
+    } else {
+      const remaining = amount - bucket.used;
+      bucket.used = 0;
+      bucket.total += remaining;
+    }
     this._updatedAt = new Date();
   }
 

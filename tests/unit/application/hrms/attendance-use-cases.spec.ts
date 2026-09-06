@@ -186,7 +186,7 @@ describe('AttendanceUseCases (Unit Tests)', () => {
     it('should create, approve, and reject regularization requests', async () => {
       const req = await useCases.createRequest(orgId, {
         userId,
-        type: 'missed_punch',
+        type: 'regularization',
         date: new Date('2026-09-05T00:00:00Z'),
         requestedFirstIn: new Date('2026-09-05T09:00:00Z'),
         requestedLastOut: new Date('2026-09-05T18:00:00Z'),
@@ -196,7 +196,7 @@ describe('AttendanceUseCases (Unit Tests)', () => {
 
       expect(req.id).toBeDefined();
       expect(req.status).toBe('pending');
-      expect(req.type).toBe('missed_punch');
+      expect(req.type).toBe('regularization');
 
       const approved = await useCases.approveAttendanceRequest(orgId, req.id, 'usr-manager');
       expect(approved.status).toBe('approved');
@@ -222,7 +222,7 @@ describe('AttendanceUseCases (Unit Tests)', () => {
         organizationId: orgId,
         employeeId: 'emp-101',
         date: new Date('2026-09-01T00:00:00Z'),
-        status: 'absent',
+        initialStatus: 'absent',
       });
       await dailyRepo.save(day);
 

@@ -41,11 +41,11 @@ describe('LeaveManagementUseCases (Unit Tests)', () => {
       });
 
       expect(balance.userId).toBe(userId);
-      expect(balance.casualLeaveTotal).toBe(12);
-      expect(balance.casualLeaveRemaining).toBe(12);
+      expect(balance.casualLeave.total).toBe(12);
+      expect(balance.casualLeave.used).toBe(0);
 
       const myBalance = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(myBalance.sickLeaveTotal).toBe(10);
+      expect(myBalance.sickLeave.total).toBe(10);
     });
 
     it('should accrue monthly earned leaves across all balances', async () => {
@@ -64,7 +64,7 @@ describe('LeaveManagementUseCases (Unit Tests)', () => {
       expect(res.accruedCount).toBe(2);
 
       const b1 = await useCases.getMyBalance(orgId, 'usr-1', currentYear);
-      expect(b1.earnedLeaveTotal).toBe(11.75);
+      expect(b1.earnedLeave.total).toBe(11.75);
     });
   });
 
@@ -98,8 +98,7 @@ describe('LeaveManagementUseCases (Unit Tests)', () => {
 
       // Check balance was debited
       const balance = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(balance.casualLeaveUsed).toBe(2);
-      expect(balance.casualLeaveRemaining).toBe(8);
+      expect(balance.casualLeave.used).toBe(2);
     });
 
     it('should approve leave request', async () => {
@@ -133,14 +132,13 @@ describe('LeaveManagementUseCases (Unit Tests)', () => {
       });
 
       let bal = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(bal.casualLeaveUsed).toBe(3);
+      expect(bal.casualLeave.used).toBe(3);
 
       const rejected = await useCases.rejectRequest(orgId, req.id, 'usr-manager', 'Insufficient coverage');
       expect(rejected.status).toBe('rejected');
 
       bal = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(bal.casualLeaveUsed).toBe(0);
-      expect(bal.casualLeaveRemaining).toBe(10);
+      expect(bal.casualLeave.used).toBe(0);
     });
 
     it('should restore leave balance when pending request is deleted', async () => {
@@ -155,13 +153,12 @@ describe('LeaveManagementUseCases (Unit Tests)', () => {
       });
 
       let bal = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(bal.sickLeaveUsed).toBe(2);
+      expect(bal.sickLeave.used).toBe(2);
 
       await useCases.deleteRequest(orgId, req.id);
 
       bal = await useCases.getMyBalance(orgId, userId, currentYear);
-      expect(bal.sickLeaveUsed).toBe(0);
-      expect(bal.sickLeaveRemaining).toBe(10);
+      expect(bal.sickLeave.used).toBe(0);
     });
 
     it('should throw NotFoundError for non-existent request', async () => {

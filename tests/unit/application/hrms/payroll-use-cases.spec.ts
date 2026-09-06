@@ -49,43 +49,47 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
     it('should create and retrieve a salary structure with earnings and deductions', async () => {
       const struct = await useCases.createSalaryStructure(orgId, {
         userId,
-        baseSalary: 75000,
+        title: 'Standard Full-Time Package',
         currency: 'INR',
         components: [
           { code: 'BASIC', name: 'Basic Salary', category: 'earning', calculationType: 'fixed', amount: 50000, taxable: true },
           { code: 'HRA', name: 'House Rent Allowance', category: 'earning', calculationType: 'fixed', amount: 20000, taxable: true },
           { code: 'PF', name: 'Provident Fund', category: 'deduction', calculationType: 'fixed', amount: 1800, taxable: false },
         ],
-        grossSalary: 70000,
-        netSalary: 68200,
       });
 
       expect(struct.id).toBeDefined();
       expect(struct.userId).toBe(userId);
+      expect(struct.title).toBe('Standard Full-Time Package');
       expect(struct.components.length).toBe(3);
+      expect(struct.grossMonthly).toBe(70000);
+      expect(struct.netMonthly).toBe(68200);
 
       const retrieved = await useCases.getSalaryStructureById(orgId, struct.id);
-      expect(retrieved.baseSalary).toBe(75000);
+      expect(retrieved.title).toBe('Standard Full-Time Package');
       expect(retrieved.status).toBe('draft');
     });
 
     it('should activate and update a salary structure', async () => {
       const struct = await useCases.createSalaryStructure(orgId, {
         userId,
-        baseSalary: 60000,
+        title: 'Executive Package',
       });
 
       const updated = await useCases.updateSalaryStructure(orgId, struct.id, {
-        baseSalary: 65000,
+        title: 'Executive Senior Package',
         status: 'active',
       });
 
-      expect(updated.baseSalary).toBe(65000);
+      expect(updated.title).toBe('Executive Senior Package');
       expect(updated.status).toBe('active');
     });
 
     it('should delete salary structure and throw NotFoundError on subsequent access', async () => {
-      const struct = await useCases.createSalaryStructure(orgId, { userId, baseSalary: 50000 });
+      const struct = await useCases.createSalaryStructure(orgId, {
+        userId,
+        title: 'Temporary Structure',
+      });
       await useCases.deleteSalaryStructure(orgId, struct.id);
       await expect(useCases.getSalaryStructureById(orgId, struct.id)).rejects.toThrow(NotFoundError);
     });
@@ -107,14 +111,12 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       // Create salary structure
       await useCases.createSalaryStructure(orgId, {
         userId,
-        baseSalary: 60000,
+        title: 'General Employee Compensation',
         components: [
           { code: 'BASIC', name: 'Basic Salary', category: 'earning', calculationType: 'fixed', amount: 40000, taxable: true },
           { code: 'HRA', name: 'House Rent Allowance', category: 'earning', calculationType: 'fixed', amount: 15000, taxable: true },
           { code: 'PF', name: 'Provident Fund', category: 'deduction', calculationType: 'fixed', amount: 1800, taxable: false },
         ],
-        grossSalary: 55000,
-        netSalary: 53200,
       });
     });
 
@@ -179,16 +181,16 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       const claim = await useCases.createExpenseClaim(orgId, {
         userId,
         title: 'Client Lunch in Mumbai',
-        category: 'food',
-        claimAmount: 4500,
         currency: 'INR',
-        receipts: [{ fileUrl: 'https://cdn.apex.com/receipt.jpg', fileName: 'bill.jpg', mimeType: 'image/jpeg' }],
+        items: [
+          { category: 'food', expenseDate: new Date(), amount: 4500, description: 'Lunch with client' },
+        ],
         submitNow: true,
       });
 
       expect(claim.id).toBeDefined();
       expect(claim.status).toBe('submitted');
-      expect(claim.claimAmount).toBe(4500);
+      expect(claim.totalAmount).toBe(4500);
 
       const approved = await useCases.approveExpenseClaim(
         orgId,
@@ -198,18 +200,19 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
         'Approved up to capped policy limit'
       );
 
-      expect(approved.status).toBe('approved');
+      expect(approved.status).toBe('partially_approved');
       expect(approved.approvedAmount).toBe(4000);
-      expect(approved.approverComments).toBe('Approved up to capped policy limit');
+      expect(approved.approvalFlow[0].comments).toBe('Approved up to capped policy limit');
     });
 
     it('should reject an expense claim with comments', async () => {
       const claim = await useCases.createExpenseClaim(orgId, {
         userId,
         title: 'Taxi to airport',
-        category: 'travel',
-        claimAmount: 1200,
         currency: 'INR',
+        items: [
+          { category: 'travel', expenseDate: new Date(), amount: 1200, description: 'Airport cab' },
+        ],
       });
 
       const rejected = await useCases.rejectExpenseClaim(
@@ -220,7 +223,7 @@ describe('PayrollAndExpensesUseCases (Unit Tests)', () => {
       );
 
       expect(rejected.status).toBe('rejected');
-      expect(rejected.approverComments).toBe('Missing formal receipt document');
+      expect(rejected.approvalFlow[0].comments).toBe('Missing formal receipt document');
     });
   });
 });

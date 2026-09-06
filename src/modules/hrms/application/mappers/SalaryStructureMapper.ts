@@ -53,7 +53,7 @@ export class SalaryStructureMapper implements IMapper<SalaryStructure, any, any>
       title: domain.title,
       currency: domain.currency,
       payFrequency: domain.payFrequency,
-      effectiveFrom: domain.effectiveFrom.toISOString(),
+      effectiveFrom: (domain.effectiveFrom ?? new Date()).toISOString(),
       effectiveTo: domain.effectiveTo?.toISOString(),
       status: domain.status,
       components: domain.components,

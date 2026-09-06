@@ -105,7 +105,7 @@ export class SalaryStructure extends Entity<string> {
       title: params.title.trim(),
       currency: params.currency ?? 'INR',
       payFrequency: params.payFrequency ?? 'monthly',
-      effectiveFrom: params.effectiveFrom,
+      effectiveFrom: params.effectiveFrom ?? now,
       effectiveTo: params.effectiveTo,
       status: 'draft',
       components: params.components ?? [],
