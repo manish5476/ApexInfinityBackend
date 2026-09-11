@@ -1,6 +1,6 @@
 import { Schema, Document, Connection, Model } from 'mongoose';
 
-export interface RoleDocument extends Document {
+export interface RoleDocument extends Document<string> {
   _id: string;
   organizationId: string;
   name: string;

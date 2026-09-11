@@ -1,6 +1,6 @@
 import { Schema, Document, Connection, Model } from 'mongoose';
 
-export interface SupplierDocument extends Document {
+export interface SupplierDocument extends Document<string> {
   _id: string;
   organizationId: string;
   companyName: string;

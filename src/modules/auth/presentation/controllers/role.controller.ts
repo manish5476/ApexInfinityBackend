@@ -112,7 +112,10 @@ export class RoleController {
 
   public getRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const role = await this.roleRepo.findById(req.params.id);
+      const roleId = req.params.id;
+      if (!roleId) throw new BadRequestError('Role ID is required.');
+
+      const role = await this.roleRepo.findById(roleId);
       if (!role || role.isDeleted) throw new NotFoundError('Role not found.');
 
       const user = (req as unknown as { user: AuthenticatedUser }).user;
@@ -170,7 +173,10 @@ export class RoleController {
 
   public updateRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const role = await this.roleRepo.findById(req.params.id);
+      const roleId = req.params.id;
+      if (!roleId) throw new BadRequestError('Role ID is required.');
+
+      const role = await this.roleRepo.findById(roleId);
       if (!role || role.isDeleted) throw new NotFoundError('Role not found.');
 
       const user = (req as unknown as { user: AuthenticatedUser }).user;
@@ -199,7 +205,10 @@ export class RoleController {
 
   public deleteRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const role = await this.roleRepo.findById(req.params.id);
+      const roleId = req.params.id;
+      if (!roleId) throw new BadRequestError('Role ID is required.');
+
+      const role = await this.roleRepo.findById(roleId);
       if (!role || role.isDeleted) throw new NotFoundError('Role not found.');
 
       const user = (req as unknown as { user: AuthenticatedUser }).user;
@@ -236,8 +245,8 @@ export class RoleController {
       const targetUser = await this.userRepo.findById(userId);
       if (!targetUser) throw new NotFoundError('User not found.');
 
-      targetUser.updateRoles([role.name]);
-      targetUser.updatePermissions(role.permissions);
+      targetUser.assignRoles([role.name]);
+      targetUser.assignPermissions(role.permissions);
       await this.userRepo.save(targetUser);
 
       res.status(200).json({
@@ -264,8 +273,8 @@ export class RoleController {
       for (const uid of userIds) {
         const u = await this.userRepo.findById(uid);
         if (u) {
-          u.updateRoles([role.name]);
-          u.updatePermissions(role.permissions);
+          u.assignRoles([role.name]);
+          u.assignPermissions(role.permissions);
           await this.userRepo.save(u);
           updatedCount++;
         }

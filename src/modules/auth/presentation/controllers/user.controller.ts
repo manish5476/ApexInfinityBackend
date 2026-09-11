@@ -475,7 +475,7 @@ export class UserController {
       await this.emailSender.send({
         to: user.email,
         subject: 'Invitation to Apex Infinity Platform',
-        body: `Hello ${user.name},\n\nYou have been invited to Apex. Please log in at ${process.env.FRONTEND_URL || 'http://localhost:4200'}.`,
+        html: `<p>Hello ${user.name},</p><p>You have been invited to Apex. Please log in at ${process.env.FRONTEND_URL || 'http://localhost:4200'}.</p>`,
       });
 
       res.status(200).json({

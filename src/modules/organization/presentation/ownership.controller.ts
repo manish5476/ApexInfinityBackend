@@ -77,7 +77,7 @@ export class OwnershipController {
       await this.emailSender.send({
         to: newOwner.email,
         subject: `Action Required: Accept Ownership of ${org.name}`,
-        body: `Hello ${newOwner.name},\n\nYou have been nominated to become the primary owner of "${org.name}".\n\nAccept transfer: ${transferLink}\n\nThis link expires in 24 hours.`,
+        html: `<p>Hello ${newOwner.name},</p><p>You have been nominated to become the primary owner of "${org.name}".</p><p><a href="${transferLink}">Accept transfer</a></p><p>This link expires in 24 hours.</p>`,
       });
 
       res.status(200).json({

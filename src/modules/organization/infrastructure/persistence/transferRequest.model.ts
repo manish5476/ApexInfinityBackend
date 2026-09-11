@@ -1,6 +1,6 @@
 import { Schema, Document, Connection, Model } from 'mongoose';
 
-export interface TransferRequestDocument extends Document {
+export interface TransferRequestDocument extends Document<string> {
   _id: string;
   organizationId: string;
   currentOwner: string;

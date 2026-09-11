@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { Connection } from 'mongoose';
 import { CrmController } from './presentation/controllers/crm.controller';
+import { SupplierController } from './presentation/controllers/supplier.controller';
 import { createCrmRoutes, createCustomerRoutes } from './presentation/routes/crm.routes';
+import { createSupplierRoutes } from './presentation/routes/supplier.routes';
+import { getSupplierModel } from './infrastructure/persistence/supplier.model';
 import { MongoCustomerRepository } from './infrastructure/repositories/MongoCustomerRepository';
 import { MongoLeadRepository } from './infrastructure/repositories/MongoLeadRepository';
 import { MongoOpportunityRepository } from './infrastructure/repositories/MongoOpportunityRepository';
@@ -31,8 +34,10 @@ import { IUnitOfWork } from '../../core/application/IUnitOfWork';
 export interface CrmModule {
   routes: Router;
   customerRoutes: Router;
+  supplierRoutes: Router;
   customerRepo: ICustomerRepository;
   opportunityRepo: IOpportunityRepository;
+  supplierController: SupplierController;
 }
 
 export function createCrmModule(deps: {
@@ -41,10 +46,11 @@ export function createCrmModule(deps: {
   eventBus: IEventBus;
   uow: IUnitOfWork;
 }): CrmModule {
-  // Repositories
+  // Repositories & Models
   const customerRepo = new MongoCustomerRepository();
   const leadRepo = new MongoLeadRepository();
   const opportunityRepo = new MongoOpportunityRepository();
+  const supplierModel = getSupplierModel(deps.connection);
 
   // Use Cases
   const createCustomerUseCase = new CreateCustomerUseCase(customerRepo, deps.eventBus, deps.uow);
@@ -85,11 +91,13 @@ export function createCrmModule(deps: {
     updateOpportunityStageUseCase,
     listOpportunitiesUseCase
   );
+  const supplierController = new SupplierController(supplierModel);
 
   // Routes
   const routes = createCrmRoutes(crmController, deps.tokenService);
   const customerRoutes = createCustomerRoutes(crmController, deps.tokenService);
+  const supplierRoutes = createSupplierRoutes(supplierController, deps.tokenService);
 
-  return { routes, customerRoutes, customerRepo, opportunityRepo };
+  return { routes, customerRoutes, supplierRoutes, customerRepo, opportunityRepo, supplierController };
 }
 

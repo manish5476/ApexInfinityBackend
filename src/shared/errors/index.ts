@@ -40,6 +40,18 @@ export class ApplicationError extends AppBaseError {
 }
 
 /**
+ * Bad Request Error (HTTP 400)
+ */
+export class BadRequestError extends AppBaseError {
+  public readonly statusCode = 400;
+  public readonly code = 'BAD_REQUEST';
+
+  constructor(message: string, details?: unknown) {
+    super(message, details);
+  }
+}
+
+/**
  * Resource Not Found Error
  */
 export class NotFoundError extends AppBaseError {

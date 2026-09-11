@@ -28,6 +28,7 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/hrms', container.modules.hrms.routes);
   apiRouter.use('/crm', container.modules.crm.routes);
   apiRouter.use('/customers', container.modules.crm.customerRoutes);
+  apiRouter.use('/suppliers', container.modules.crm.supplierRoutes);
   apiRouter.use('/inventory', container.modules.inventory.routes);
   apiRouter.use('/products', container.modules.inventory.productRoutes);
   apiRouter.use('/stock', container.modules.inventory.stockRoutes);
