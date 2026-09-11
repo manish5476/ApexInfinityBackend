@@ -1,0 +1,91 @@
+import { z } from 'zod';
+
+const addressSchema = z.object({
+  label: z.string().optional(),
+  fullName: z.string().optional(),
+  phone: z.string().optional(),
+  country: z.string().optional().default('India'),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  landmark: z.string().optional(),
+  coordinates: z.object({
+    lat: z.number().nullable().optional(),
+    lng: z.number().nullable().optional(),
+  }).optional(),
+});
+
+const parcelSchema = z.object({
+  sku: z.string().optional(),
+  description: z.string().optional(),
+  quantity: z.number().int().min(1).default(1),
+  weightGrams: z.number().min(0).optional(),
+  lengthCm: z.number().min(0).optional(),
+  widthCm: z.number().min(0).optional(),
+  heightCm: z.number().min(0).optional(),
+  declaredValue: z.number().min(0).optional(),
+});
+
+export const createShipmentSchema = z.object({
+  businessId: z.string().nullable().optional(),
+  storeId: z.string().nullable().optional(),
+  shopId: z.string().nullable().optional(),
+  warehouseId: z.string().nullable().optional(),
+  sourceType: z.enum(['storefront_order', 'sales_order', 'invoice', 'return', 'transfer', 'manual']).optional().default('manual'),
+  sourceId: z.string().nullable().optional(),
+  sourceNumber: z.string().optional(),
+  fulfillmentMode: z.enum(['merchant_internal', 'platform_partner', 'hybrid_ranked', 'manual_external', 'pickup_only']).optional().default('merchant_internal'),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional().default('normal'),
+  serviceLevel: z.enum(['standard', 'express', 'same_day', 'scheduled']).optional().default('standard'),
+  slaDeadlineAt: z.string().datetime().nullable().optional().transform(v => (v ? new Date(v) : null)),
+  scheduledPickupAt: z.string().datetime().nullable().optional().transform(v => (v ? new Date(v) : null)),
+  promisedDeliveryAt: z.string().datetime().nullable().optional().transform(v => (v ? new Date(v) : null)),
+  pickupAddress: addressSchema,
+  dropoffAddress: addressSchema,
+  returnAddress: addressSchema.nullable().optional(),
+  parcels: z.array(parcelSchema).optional().default([]),
+  cod: z.object({
+    enabled: z.boolean().default(false),
+    amount: z.number().min(0).default(0),
+    collected: z.boolean().default(false),
+  }).optional(),
+  customer: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email().optional(),
+  }).optional(),
+  notes: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export const transitionShipmentSchema = z.object({
+  command: z.enum([
+    'mark_ready',
+    'request_assignment',
+    'assign',
+    'accept',
+    'schedule_pickup',
+    'start_pickup',
+    'arrive_pickup',
+    'confirm_pickup',
+    'start_transit',
+    'near_destination',
+    'attempt_delivery',
+    'deliver',
+    'fail',
+    'start_return',
+    'return_in_transit',
+    'complete_return',
+    'cancel',
+    'escalate',
+  ]),
+  assignedDriverId: z.string().nullable().optional(),
+  assignedVehicleId: z.string().nullable().optional(),
+  providerId: z.string().nullable().optional(),
+  partnerId: z.string().nullable().optional(),
+  codCollected: z.boolean().optional(),
+  reason: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});

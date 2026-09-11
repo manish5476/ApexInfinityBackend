@@ -50,16 +50,33 @@ export interface AuthModuleDependencies {
   isProduction?: boolean;
 }
 
+import { getRoleModel } from './infrastructure/persistence/role.model';
+import { MongoRoleRepository } from './infrastructure/repositories/MongoRoleRepository';
+import { IRoleRepository } from './domain/ports/IRoleRepository';
+import { RoleController } from './presentation/controllers/role.controller';
+import { createRoleRoutes } from './presentation/routes/role.routes';
+import { SessionController } from './presentation/controllers/session.controller';
+import { createSessionRoutes } from './presentation/routes/session.routes';
+import { UserController } from './presentation/controllers/user.controller';
+import { createUserRoutes } from './presentation/routes/user.routes';
+
 export interface AuthModule {
   repository: IUserRepository;
   sessionRepository: ISessionRepository;
+  roleRepository: IRoleRepository;
   registerUseCase: RegisterUserUseCase;
   loginUseCase: LoginUseCase;
   getCurrentUserUseCase: GetCurrentUserUseCase;
   getUserByIdUseCase: GetUserByIdUseCase;
   listUsersUseCase: ListUsersUseCase;
   controller: AuthController;
+  userController: UserController;
+  roleController: RoleController;
+  sessionController: SessionController;
   routes: Router;
+  userRoutes: Router;
+  roleRoutes: Router;
+  sessionRoutes: Router;
 }
 
 export function createAuthModule(deps: AuthModuleDependencies): AuthModule {
@@ -68,21 +85,25 @@ export function createAuthModule(deps: AuthModuleDependencies): AuthModule {
   const accessTokenExpiresIn = deps.accessTokenExpiresIn || '15m';
   const frontendUrl = deps.frontendUrl || 'http://localhost:4200';
 
+  const userModel = getUserModel(deps.connection);
+  const sessionModel = getSessionModel(deps.connection);
+  const roleModel = getRoleModel(deps.connection);
+
   let repository: IUserRepository;
   if (deps.repositoryOverride) {
     repository = deps.repositoryOverride;
   } else {
-    const model = getUserModel(deps.connection);
-    repository = new MongoUserRepository(model, mapper);
+    repository = new MongoUserRepository(userModel, mapper);
   }
 
   let sessionRepository: ISessionRepository;
   if (deps.sessionRepositoryOverride) {
     sessionRepository = deps.sessionRepositoryOverride;
   } else {
-    const sessionModel = getSessionModel(deps.connection);
     sessionRepository = new MongoSessionRepository(sessionModel, sessionMapper);
   }
+
+  const roleRepository = new MongoRoleRepository(roleModel, userModel);
 
   const issueSession = new IssueAuthSessionService(
     sessionRepository,
@@ -167,17 +188,45 @@ export function createAuthModule(deps: AuthModuleDependencies): AuthModule {
     deps.isProduction
   );
 
+  const userController = new UserController(
+    userModel,
+    roleModel,
+    sessionModel,
+    deps.passwordHasher,
+    deps.tokenService,
+    deps.emailSender
+  );
+
+  const roleController = new RoleController(
+    roleRepository,
+    repository,
+    deps.eventBus || { publish: async () => {} } as any
+  );
+
+  const sessionController = new SessionController(sessionModel);
+
   const routes = createAuthRoutes(controller, deps.tokenService);
+  const userRoutes = createUserRoutes(userController, deps.tokenService);
+  const roleRoutes = createRoleRoutes(roleController, deps.tokenService);
+  const sessionRoutes = createSessionRoutes(sessionController, deps.tokenService);
 
   return {
     repository,
     sessionRepository,
+    roleRepository,
     registerUseCase,
     loginUseCase,
     getCurrentUserUseCase,
     getUserByIdUseCase,
     listUsersUseCase,
     controller,
+    userController,
+    roleController,
+    sessionController,
     routes,
+    userRoutes,
+    roleRoutes,
+    sessionRoutes,
   };
 }
+

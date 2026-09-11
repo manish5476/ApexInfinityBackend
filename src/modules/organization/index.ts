@@ -28,10 +28,17 @@ export * from './application';
 export * from './infrastructure';
 export * from './presentation';
 
+import { IEmailSender } from '../../infrastructure/email/IEmailSender';
+import { getTransferRequestModel } from './infrastructure/persistence/transferRequest.model';
+import { getUserModel } from '../auth/infrastructure/persistence/user.model';
+import { OwnershipController } from './presentation/ownership.controller';
+import { createOwnershipRoutes } from './presentation/ownership.routes';
+
 export interface OrganizationModuleDependencies {
   connection: Connection;
   eventBus?: IEventBus;
   tokenService?: ITokenService;
+  emailSender?: IEmailSender;
   repositoryOverride?: IOrganizationRepository;
   branchRepoOverride?: IBranchRepository;
 }
@@ -43,19 +50,24 @@ export interface OrganizationModule {
   getByIdUseCase: GetOrganizationByIdUseCase;
   updateUseCase: UpdateOrganizationUseCase;
   controller: OrganizationController;
+  ownershipController: OwnershipController;
   routes: Router;
   branchRoutes: Router;
+  ownershipRoutes: Router;
 }
 
 export function createOrganizationModule(deps: OrganizationModuleDependencies): OrganizationModule {
   const mapper = new OrganizationMapper();
 
+  const orgModel = getOrganizationModel(deps.connection);
+  const transferModel = getTransferRequestModel(deps.connection);
+  const userModel = getUserModel(deps.connection);
+
   let repository: IOrganizationRepository;
   if (deps.repositoryOverride) {
     repository = deps.repositoryOverride;
   } else {
-    const model = getOrganizationModel(deps.connection);
-    repository = new MongoOrganizationRepository(model, mapper);
+    repository = new MongoOrganizationRepository(orgModel, mapper);
   }
 
   const branchRepository = deps.branchRepoOverride || new InMemoryBranchRepository();
@@ -80,6 +92,13 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     deleteBranchUseCase
   );
 
+  const ownershipController = new OwnershipController(
+    orgModel,
+    transferModel,
+    userModel,
+    deps.emailSender || { send: async () => {} }
+  );
+
   const routes = createOrganizationRoutes(controller, deps.tokenService);
   const dummyTokenService: ITokenService = deps.tokenService || {
     generateToken: () => '',
@@ -88,6 +107,7 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     verifyRefreshToken: () => ({} as any),
   };
   const branchRoutes = createBranchRoutes(branchController, dummyTokenService);
+  const ownershipRoutes = createOwnershipRoutes(ownershipController, dummyTokenService);
 
   return {
     repository,
@@ -96,7 +116,10 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     getByIdUseCase,
     updateUseCase,
     controller,
+    ownershipController,
     routes,
     branchRoutes,
+    ownershipRoutes,
   };
 }
+

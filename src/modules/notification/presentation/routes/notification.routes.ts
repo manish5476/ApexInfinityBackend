@@ -8,9 +8,26 @@ export function createNotificationRoutes(controller: NotificationController, tok
   const authGuard = createAuthMiddleware(tokenService);
   router.use(authGuard);
 
+  // 1. Static and summary routes
+  router.get('/stats', controller.getNotificationStats);
+  router.get('/unread-count', controller.getUnreadCount);
+  router.get('/my-notifications', controller.getMyNotifications);
+
+  // Bulk actions
+  router.patch('/mark-read', controller.markMultipleAsRead);
+  router.patch('/mark-all-read', controller.markAllRead);
+  router.patch('/read-all', controller.markAllRead);
+  router.delete('/clear-all', controller.clearAll);
+
+  // 2. Collection root routes
+  router.get('/', controller.getMyNotifications);
   router.post('/', controller.sendNotificationHandler);
-  router.get('/', controller.listNotificationsHandler);
-  router.patch('/:id/read', controller.markReadHandler);
+
+  // 3. ID-based routes
+  router.get('/:id', controller.getNotification);
+  router.patch('/:id/read', controller.markAsRead);
+  router.patch('/:id', controller.markAsRead);
+  router.delete('/:id', controller.deleteNotification);
 
   return router;
 }

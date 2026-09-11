@@ -24,6 +24,14 @@ export class InMemoryWebhookRepository implements IWebhookRepository {
     }
   }
 
+  async delete(query: { id: string; organizationId: string }): Promise<boolean> {
+    const initialLen = this.webhooks.length;
+    this.webhooks = this.webhooks.filter(
+      (w) => !(w.id === query.id && w.organizationId === query.organizationId)
+    );
+    return this.webhooks.length < initialLen;
+  }
+
   async list(query: {
     organizationId: string;
     page?: number;
@@ -35,6 +43,8 @@ export class InMemoryWebhookRepository implements IWebhookRepository {
     if (query.isActive !== undefined) {
       filtered = filtered.filter((w) => w.isActive === query.isActive);
     }
+
+    filtered.sort((a, b) => b.props.createdAt.getTime() - a.props.createdAt.getTime());
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

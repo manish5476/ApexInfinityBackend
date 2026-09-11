@@ -65,6 +65,37 @@ export class WebhookSubscription extends AggregateRoot<string> {
     return new WebhookSubscription(props.id, props);
   }
 
+  updateDetails(params: Partial<{
+    name: string;
+    url: string;
+    events: string[];
+    secret: string;
+    isActive: boolean;
+  }>): void {
+    if (params.name !== undefined) {
+      if (!params.name.trim()) throw new Error('Webhook name cannot be empty');
+      this._props.name = params.name.trim();
+    }
+    if (params.url !== undefined) {
+      if (!params.url.trim() || !/^https?:\/\/.+/.test(params.url.trim())) {
+        throw new Error('Valid webhook URL starting with http:// or https:// is required');
+      }
+      this._props.url = params.url.trim();
+    }
+    if (params.events !== undefined) {
+      if (!params.events.length) throw new Error('At least one event is required');
+      this._props.events = params.events;
+    }
+    if (params.secret !== undefined) {
+      this._props.secret = params.secret;
+    }
+    if (params.isActive !== undefined) {
+      this._props.isActive = params.isActive;
+      this._props.status = params.isActive ? WebhookStatus.ACTIVE : WebhookStatus.PAUSED;
+    }
+    this._props.updatedAt = new Date();
+  }
+
   matchesEvent(eventName: string): boolean {
     if (!this._props.isActive || this._props.status !== WebhookStatus.ACTIVE) {
       return false;
@@ -101,13 +132,21 @@ export class WebhookSubscription extends AggregateRoot<string> {
     this._props.updatedAt = new Date();
   }
 
+  regenerateSecret(): string {
+    const newSecret = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    this._props.secret = newSecret;
+    this._props.updatedAt = new Date();
+    return newSecret;
+  }
+
   get organizationId() { return this._props.organizationId; }
   get name() { return this._props.name; }
   get url() { return this._props.url; }
   get secret() { return this._props.secret; }
-  get events() { return this._props.events; }
+  get events() { return [...this._props.events]; }
   get isActive() { return this._props.isActive; }
   get status() { return this._props.status; }
   get failureCount() { return this._props.failureCount; }
+  get lastTriggeredAt() { return this._props.lastTriggeredAt; }
   get props() { return { ...this._props }; }
 }

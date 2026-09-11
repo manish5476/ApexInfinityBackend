@@ -18,9 +18,12 @@ export function createApp(container: ApplicationContainer): Express {
   // 3. Domain module routes
   const apiRouter = express.Router();
   apiRouter.use('/auth', container.modules.auth.routes);
-  apiRouter.use('/users', container.modules.auth.routes);
+  apiRouter.use('/users', container.modules.auth.userRoutes);
+  apiRouter.use('/roles', container.modules.auth.roleRoutes);
+  apiRouter.use('/sessions', container.modules.auth.sessionRoutes);
   apiRouter.use('/organizations', container.modules.organization.routes);
   apiRouter.use('/organization', container.modules.organization.routes);
+  apiRouter.use('/ownership', container.modules.organization.ownershipRoutes);
   apiRouter.use('/branches', container.modules.organization.branchRoutes);
   apiRouter.use('/hrms', container.modules.hrms.routes);
   apiRouter.use('/crm', container.modules.crm.routes);
@@ -38,7 +41,26 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/admin/storefront', container.modules.storefront.adminRoutes);
   apiRouter.use('/store', container.modules.storefront.publicRoutes);
   apiRouter.use('/notifications', container.modules.notification.routes);
+  apiRouter.use('/announcements', container.modules.notification.announcementRoutes);
   apiRouter.use('/webhooks', container.modules.webhook.routes);
+  apiRouter.use('/master', container.modules.master.masterRoutes);
+  apiRouter.use('/master-list', container.modules.master.masterListRoutes);
+  apiRouter.use('/master-types', container.modules.master.masterTypeRoutes);
+  apiRouter.use('/dropdowns', container.modules.master.dropdownRoutes);
+  apiRouter.use('/notes', container.modules.collaboration.noteRoutes);
+  apiRouter.use('/tasks', container.modules.collaboration.noteRoutes);
+  apiRouter.use('/meetings', container.modules.collaboration.noteRoutes);
+  apiRouter.use('/field-service/work-assignments', container.modules.fieldService.router);
+  apiRouter.use('/assets', container.modules.mediaAssets.router);
+  apiRouter.use('/logistics', container.modules.logistics.router);
+  apiRouter.use('/admin/platform', container.modules.adminPlatform.platformRouter);
+  apiRouter.use('/internal/platform', container.modules.adminPlatform.internalRouter);
+  apiRouter.use('/analytics', container.modules.analytics.analyticsRouter);
+  apiRouter.use('/charts', container.modules.analytics.chartRouter);
+  apiRouter.use('/customer-analytics', container.modules.analytics.customerAnalyticsRouter);
+  apiRouter.use('/feed', container.modules.analytics.feedRouter);
+  apiRouter.use('/ai-agent', container.modules.aiAgent.aiAgentRouter);
+  apiRouter.use('/chat', container.modules.aiAgent.chatRouter);
 
   app.use('/api/v1', apiRouter);
 
