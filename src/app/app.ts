@@ -35,10 +35,16 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/purchases', container.modules.inventory.purchaseRoutes);
   apiRouter.use('/sales', container.modules.inventory.salesRoutes);
   apiRouter.use('/accounting', container.modules.accounting.routes);
+  apiRouter.use('/invoices/pdf', container.modules.accounting.invoicePdfRoutes);
   apiRouter.use('/invoices', container.modules.accounting.invoiceRoutes);
   apiRouter.use('/payments', container.modules.accounting.paymentRoutes);
   apiRouter.use('/accounts', container.modules.accounting.accountRoutes);
   apiRouter.use('/ledgers', container.modules.accounting.ledgerRoutes);
+  apiRouter.use('/emi', container.modules.accounting.emiRoutes);
+  apiRouter.use('/statements', container.modules.accounting.statementRoutes);
+  apiRouter.use('/reconciliation', container.modules.accounting.reconciliationRoutes);
+  apiRouter.use('/transactions', container.modules.accounting.transactionRoutes);
+  apiRouter.use('/partytransactions', container.modules.accounting.partyTransactionRoutes);
   apiRouter.use('/admin/storefront', container.modules.storefront.adminRoutes);
   apiRouter.use('/store', container.modules.storefront.publicRoutes);
   apiRouter.use('/notifications', container.modules.notification.routes);

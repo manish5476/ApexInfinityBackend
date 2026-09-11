@@ -128,6 +128,7 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
     connection: deps.connection,
     tokenService: deps.tokenService,
     eventBus: deps.eventBus,
+    emailSender: deps.emailSender,
   });
 
   // 8. Storefront Module

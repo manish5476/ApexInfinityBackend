@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { Connection } from 'mongoose';
 import { AccountingController } from './presentation/controllers/accounting.controller';
+import { EmiController } from './presentation/controllers/emi.controller';
+import { ReconciliationController } from './presentation/controllers/reconciliation.controller';
+import { TransactionController } from './presentation/controllers/transaction.controller';
+import { InvoicePDFController } from './presentation/controllers/invoicePDF.controller';
 import {
   createAccountingRoutes,
   createInvoiceRoutes,
@@ -8,6 +12,15 @@ import {
   createAccountRoutes,
   createLedgerRoutes,
 } from './presentation/routes/accounting.routes';
+import { createEmiRoutes } from './presentation/routes/emi.routes';
+import { createStatementRoutes } from './presentation/routes/statements.routes';
+import { createReconciliationRoutes } from './presentation/routes/reconciliation.routes';
+import { createTransactionRoutes } from './presentation/routes/transaction.routes';
+import { createPartyTransactionRoutes } from './presentation/routes/partyTransaction.routes';
+import { createInvoicePdfRoutes } from './presentation/routes/invoicePDF.routes';
+import { getEmiModel } from './infrastructure/persistence/emi.model';
+import { getPendingReconciliationModel } from './infrastructure/persistence/reconciliation.model';
+import { AccountEntryModel } from './infrastructure/persistence/accountEntry.model';
 import { MongoInvoiceRepository } from './infrastructure/repositories/MongoInvoiceRepository';
 import { MongoPaymentRepository } from './infrastructure/repositories/MongoPaymentRepository';
 import { MongoAccountRepository } from './infrastructure/repositories/MongoAccountRepository';
@@ -45,15 +58,22 @@ import { GetProfitLossUseCase } from './application/use-cases/GetProfitLossUseCa
 import { GetBalanceSheetUseCase } from './application/use-cases/GetBalanceSheetUseCase';
 import { ITokenService } from '../../infrastructure/security/ITokenService';
 import { IEventBus } from '../../infrastructure/messaging/IEventBus';
+import { IEmailSender } from '../../infrastructure/email/IEmailSender';
 import { IUnitOfWork } from '../../core/application/IUnitOfWork';
 import { MongoUnitOfWork } from '../../infrastructure/database/MongoUnitOfWork';
 
 export interface AccountingModule {
   routes: Router;
   invoiceRoutes: Router;
+  invoicePdfRoutes: Router;
   paymentRoutes: Router;
   accountRoutes: Router;
   ledgerRoutes: Router;
+  emiRoutes: Router;
+  statementRoutes: Router;
+  reconciliationRoutes: Router;
+  transactionRoutes: Router;
+  partyTransactionRoutes: Router;
   invoiceRepo: IInvoiceRepository;
   paymentRepo: IPaymentRepository;
   accountRepo: IAccountRepository;
@@ -64,15 +84,18 @@ export function createAccountingModule(deps: {
   connection: Connection;
   tokenService: ITokenService;
   eventBus: IEventBus;
+  emailSender?: IEmailSender;
   uow?: IUnitOfWork;
 }): AccountingModule {
   const uow: IUnitOfWork = deps.uow || new MongoUnitOfWork(deps.connection);
 
-  // Repositories
+  // Repositories & Models
   const invoiceRepo = new MongoInvoiceRepository();
   const paymentRepo = new MongoPaymentRepository();
   const accountRepo = new MongoAccountRepository();
   const accountEntryRepo = new MongoAccountEntryRepository();
+  const emiModel = getEmiModel(deps.connection);
+  const pendingModel = getPendingReconciliationModel(deps.connection);
 
   // Invoice Use Cases
   const createInvoiceUC = new CreateInvoiceUseCase(invoiceRepo, deps.eventBus, uow);
@@ -109,7 +132,7 @@ export function createAccountingModule(deps: {
   const getProfitLossUC = new GetProfitLossUseCase(accountEntryRepo, accountRepo);
   const getBalanceSheetUC = new GetBalanceSheetUseCase(accountEntryRepo, accountRepo);
 
-  // Controller
+  // Controllers
   const controller = new AccountingController(
     createInvoiceUC,
     listInvoicesUC,
@@ -141,19 +164,37 @@ export function createAccountingModule(deps: {
     paymentRepo,
   );
 
+  const emiController = new EmiController(emiModel);
+  const reconciliationController = new ReconciliationController(pendingModel, emiModel);
+  const transactionController = new TransactionController(AccountEntryModel);
+  const fallbackEmailSender: IEmailSender = deps.emailSender || { send: async () => {} };
+  const invoicePdfController = new InvoicePDFController(invoiceRepo, fallbackEmailSender);
+
   // Routes
   const routes = createAccountingRoutes(controller, deps.tokenService);
   const invoiceRoutes = createInvoiceRoutes(controller, deps.tokenService);
+  const invoicePdfRoutes = createInvoicePdfRoutes(invoicePdfController, deps.tokenService);
   const paymentRoutes = createPaymentRoutes(controller, deps.tokenService);
   const accountRoutes = createAccountRoutes(controller, deps.tokenService);
   const ledgerRoutes = createLedgerRoutes(controller, deps.tokenService);
+  const emiRoutes = createEmiRoutes(emiController, deps.tokenService);
+  const statementRoutes = createStatementRoutes(controller, deps.tokenService);
+  const reconciliationRoutes = createReconciliationRoutes(reconciliationController, deps.tokenService);
+  const transactionRoutes = createTransactionRoutes(transactionController, deps.tokenService);
+  const partyTransactionRoutes = createPartyTransactionRoutes(transactionController, deps.tokenService);
 
   return {
     routes,
     invoiceRoutes,
+    invoicePdfRoutes,
     paymentRoutes,
     accountRoutes,
     ledgerRoutes,
+    emiRoutes,
+    statementRoutes,
+    reconciliationRoutes,
+    transactionRoutes,
+    partyTransactionRoutes,
     invoiceRepo,
     paymentRepo,
     accountRepo,

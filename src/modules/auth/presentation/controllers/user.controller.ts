@@ -506,4 +506,250 @@ export class UserController {
       next(err);
     }
   };
+
+  public bulkUpdateStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { userIds, status, reason } = req.body;
+      if (!Array.isArray(userIds) || !userIds.length || !status) {
+        throw new BadRequestError('Please provide userIds array and status');
+      }
+
+      const validStatuses = ['approved', 'rejected', 'inactive', 'suspended'];
+      if (!validStatuses.includes(status)) {
+        throw new BadRequestError('Invalid status');
+      }
+
+      const updateFields: Record<string, unknown> = {
+        status,
+        updatedBy: user.id,
+        isActive: status === 'approved',
+      };
+
+      if (status === 'suspended') {
+        updateFields.isLoginBlocked = true;
+        updateFields.blockReason = reason || 'Bulk status update';
+      }
+
+      const result = await this.userModel.updateMany(
+        {
+          _id: { $in: userIds },
+          organizationId: user.organizationId,
+        },
+        { $set: updateFields }
+      ).exec();
+
+      if (status === 'suspended' || status === 'inactive') {
+        await this.sessionModel.updateMany(
+          { userId: { $in: userIds }, isValid: true },
+          { $set: { isValid: false, terminatedAt: new Date() } }
+        ).exec();
+      }
+
+      res.status(200).json({
+        status: 'success',
+        data: { matched: result.matchedCount, modified: result.modifiedCount },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public getUsersByDepartment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { departmentId } = req.params;
+
+      const users = await this.userModel
+        .find({
+          organizationId: user.organizationId,
+          $or: [{ departmentId }, { 'employeeProfile.departmentId': departmentId }],
+          isActive: true,
+        })
+        .select('name email phone avatar roles')
+        .sort({ name: 1 })
+        .lean()
+        .exec();
+
+      res.status(200).json({
+        status: 'success',
+        results: users.length,
+        data: users,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public getUserActivity = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id: userId } = req.params;
+
+      const target = await this.userModel.findOne({ _id: userId, organizationId: user.organizationId }).lean().exec();
+      if (!target) throw new NotFoundError('User not found.');
+
+      const sessions = await this.sessionModel.find({ userId }).sort({ createdAt: -1 }).limit(50).lean().exec();
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          activities: [],
+          sessions,
+          totalActivities: 0,
+          totalSessions: sessions.length,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public uploadUserPhotoByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id } = req.params;
+      const file = req.file;
+      const avatarUrl = req.body.avatar || (file ? `/uploads/avatars/${file.filename || file.originalname}` : '');
+
+      if (!avatarUrl) {
+        throw new BadRequestError('Please provide an avatar file or URL.');
+      }
+
+      const updated = await this.userModel.findOneAndUpdate(
+        { _id: id, organizationId: user.organizationId },
+        { $set: { avatar: avatarUrl, updatedBy: user.id } },
+        { new: true }
+      ).select('-passwordHash').lean().exec();
+
+      if (!updated) throw new NotFoundError('User not found.');
+
+      res.status(200).json({
+        status: 'success',
+        message: 'User photo updated by admin.',
+        data: { user: updated },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public adminUpdatePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id } = req.params;
+      const { password, passwordConfirm } = req.body;
+
+      if (!password || !passwordConfirm) {
+        throw new BadRequestError('Please provide password and passwordConfirm');
+      }
+      if (password !== passwordConfirm) {
+        throw new BadRequestError('Passwords do not match');
+      }
+      if (password.length < 8) {
+        throw new BadRequestError('Password must be at least 8 characters');
+      }
+
+      const target = await this.userModel.findOne({ _id: id, organizationId: user.organizationId }).exec();
+      if (!target) throw new NotFoundError('User not found.');
+
+      const hash = await this.passwordHasher.hash(password);
+      target.passwordHash = hash;
+      await target.save();
+
+      // Revoke sessions
+      await this.sessionModel.updateMany(
+        { userId: id, isValid: true },
+        { $set: { isValid: false, terminatedAt: new Date() } }
+      ).exec();
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Password updated. User has been logged out of all devices.',
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public activateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id } = req.params;
+
+      const updated = await this.userModel.findOneAndUpdate(
+        { _id: id, organizationId: user.organizationId },
+        { $set: { isActive: true, status: 'approved', isLoginBlocked: false, updatedBy: user.id } },
+        { new: true }
+      ).select('-passwordHash').lean().exec();
+
+      if (!updated) throw new NotFoundError('User not found.');
+
+      res.status(200).json({
+        status: 'success',
+        message: 'User activated.',
+        data: { user: updated },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public deactivateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id } = req.params;
+
+      const updated = await this.userModel.findOneAndUpdate(
+        { _id: id, organizationId: user.organizationId },
+        { $set: { isActive: false, status: 'inactive', updatedBy: user.id } },
+        { new: true }
+      ).select('-passwordHash').lean().exec();
+
+      if (!updated) throw new NotFoundError('User not found.');
+
+      await this.sessionModel.updateMany(
+        { userId: id, isValid: true },
+        { $set: { isValid: false, terminatedAt: new Date() } }
+      ).exec();
+
+      res.status(200).json({
+        status: 'success',
+        message: 'User deactivated.',
+        data: { user: updated },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public updatePermissionOverrides = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as unknown as { user: AuthenticatedUser }).user;
+      const { id } = req.params;
+      const { grant = [], revoke = [] } = req.body;
+
+      if (!Array.isArray(grant) || !Array.isArray(revoke)) {
+        throw new BadRequestError('grant and revoke must be arrays');
+      }
+
+      const target = await this.userModel.findOne({ _id: id, organizationId: user.organizationId }).exec();
+      if (!target) throw new NotFoundError('User not found.');
+
+      const currentPerms = new Set(target.permissions || []);
+      for (const p of grant) currentPerms.add(p);
+      for (const p of revoke) currentPerms.delete(p);
+
+      target.permissions = Array.from(currentPerms);
+      await target.save();
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Permission overrides updated.',
+        data: { userId: id, permissions: target.permissions, overrides: { grant, revoke } },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
 }
