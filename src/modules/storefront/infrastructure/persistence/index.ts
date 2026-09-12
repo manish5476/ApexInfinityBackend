@@ -7,3 +7,9 @@ export * from './platformDeliveryAgent.model';
 export * from './storefrontFormSubmission.model';
 export * from './storefrontLayout.model';
 export * from './smartRule.model';
+export * from './storefrontCart.model';
+export * from './storefrontCartItem.model';
+export * from './storefrontCustomerAddress.model';
+export * from './storefrontSession.model';
+export * from './storefrontWishlist.model';
+

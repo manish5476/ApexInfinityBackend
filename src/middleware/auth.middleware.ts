@@ -30,13 +30,11 @@ export function createAuthMiddleware(tokenService: ITokenService, isOptional = f
     try {
       const decoded = tokenService.verifyToken(token);
 
-      // Support explicit tenant switching via x-organization-id header if authorized
-      const targetOrgId =
-        (req.headers['x-organization-id'] as string) || decoded.organizationId;
-
+      // organizationId MUST come from the JWT only — never from a client-supplied header.
+      // Allowing x-organization-id header override would be a complete multi-tenant bypass (IDOR).
       const user: AuthenticatedUser = {
         id: decoded.userId,
-        organizationId: targetOrgId,
+        organizationId: decoded.organizationId,
         roles: decoded.roles || [],
         permissions: decoded.permissions || [],
       };

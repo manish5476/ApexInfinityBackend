@@ -20,6 +20,9 @@ export interface IProductDoc extends Document<any, any, any> {
   taxRate: number;
   isTaxInclusive: boolean;
   status: string;
+  /** Whether this product is visible on the public storefront. Defaults to true.
+   *  Allows hiding a product from the storefront without deactivating it in inventory. */
+  storefrontVisible: boolean;
   inventory: Array<{ branchId: string; quantity: number; reservedQuantity: number; reorderLevel: number; rackLocation?: string | null }>;
   defaultSupplierId: string | null;
   tags: string[];
@@ -28,6 +31,7 @@ export interface IProductDoc extends Document<any, any, any> {
   createdAt: Date;
   updatedAt: Date;
 }
+
 
 const InventoryEntrySchema = new Schema({
   branchId: { type: String, required: true },
@@ -57,6 +61,7 @@ const ProductSchema = new Schema<IProductDoc>({
   taxRate: { type: Number, default: 0 },
   isTaxInclusive: { type: Boolean, default: false },
   status: { type: String, required: true },
+  storefrontVisible: { type: Boolean, default: true },
   inventory: [InventoryEntrySchema],
   defaultSupplierId: { type: String, default: null },
   tags: [{ type: String }],
@@ -71,6 +76,9 @@ ProductSchema.index({ organizationId: 1, barcode: 1 }, { sparse: true });
 ProductSchema.index({ organizationId: 1, status: 1 });
 ProductSchema.index({ organizationId: 1, isDeleted: 1 });
 ProductSchema.index({ organizationId: 1, name: 1 });
+// Storefront public listing: covers the canonical storefront query filter
+ProductSchema.index({ organizationId: 1, status: 1, storefrontVisible: 1, isDeleted: 1 });
+
 
 export const ProductModel = mongoose.model<IProductDoc>('FwProduct', ProductSchema);
 
