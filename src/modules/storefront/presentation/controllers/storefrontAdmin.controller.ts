@@ -3,7 +3,7 @@ import { CreateStorefrontPageUseCase } from '../../application/use-cases/CreateS
 import { PublishStorefrontPageUseCase } from '../../application/use-cases/PublishStorefrontPageUseCase';
 import { ListStorefrontPagesUseCase } from '../../application/use-cases/ListStorefrontPagesUseCase';
 import { RequestContextHolder } from '../../../../middleware/requestContext.middleware';
-import { PageStatus, PageType } from '../../domain/value-objects/StorefrontEnums';
+import { PageStatus, PageType, ADMIN_ORDER_TRANSITIONS } from '../../domain/value-objects/StorefrontEnums';
 import {
   StorefrontLayoutModel,
   StorefrontCouponModel,
@@ -208,29 +208,105 @@ export class StorefrontAdminController {
   };
 
   // 4. Orders & Command Center
-  public getCommandCenter = async (_req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ status: 'success', data: { pendingOrders: 0, dispatchedOrders: 0, activeAgents: 0 } });
-  };
-
-  public getAllOrders = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getCommandCenter = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const ctx = RequestContextHolder.get()!;
-      const orders = await StorefrontOrderModel.find({ organizationId: ctx.organizationId }).sort({ createdAt: -1 }).limit(50).lean();
-      res.status(200).json({ status: 'success', results: orders.length, data: orders });
+      const orgId = ctx.organizationId;
+      const [pendingOrders, confirmedOrders, dispatchedOrders, activeAgents, todayRevenue] = await Promise.all([
+        StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'placed' }),
+        StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'confirmed' }),
+        StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'dispatched' }),
+        StorefrontDeliveryAgentModel.countDocuments({ organizationId: orgId, isActive: true }),
+        StorefrontOrderModel.aggregate([
+          {
+            $match: {
+              organizationId: orgId,
+              status: { $nin: ['cancelled', 'returned'] },
+              createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+            },
+          },
+          { $group: { _id: null, revenue: { $sum: '$totalAmount' } } },
+        ]),
+      ]);
+      res.status(200).json({
+        status: 'success',
+        data: {
+          pendingOrders,
+          confirmedOrders,
+          dispatchedOrders,
+          activeAgents,
+          todayRevenue: todayRevenue[0]?.revenue ?? 0,
+        },
+      });
     } catch (err) { next(err); }
   };
+
+
+  public getAllOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ctx = RequestContextHolder.get()!;
+      const page = Math.max(Number(req.query.page) || 1, 1);
+      const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+      const filter: Record<string, unknown> = { organizationId: ctx.organizationId };
+      if (req.query.status) filter.status = req.query.status;
+      if (req.query.fulfillmentStatus) filter.fulfillmentStatus = req.query.fulfillmentStatus;
+      if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
+      const [orders, total] = await Promise.all([
+        StorefrontOrderModel.find(filter as any)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean(),
+        StorefrontOrderModel.countDocuments(filter as any),
+      ]);
+      res.status(200).json({ status: 'success', results: orders.length, total, page, limit, data: orders });
+    } catch (err) { next(err); }
+  };
+
 
   public updateOrderStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const ctx = RequestContextHolder.get()!;
+      const newStatus = (req.body.status as string || '').trim();
+      if (!newStatus) {
+        res.status(400).json({ status: 'fail', message: 'status is required' });
+        return;
+      }
+
+      // Fetch current order to validate transition
+      const current = await StorefrontOrderModel.findOne({
+        organizationId: ctx.organizationId, _id: req.params.orderId,
+      }).lean() as any;
+      if (!current) {
+        res.status(404).json({ status: 'fail', message: 'Order not found' });
+        return;
+      }
+
+      const allowedTransitions: string[] = ADMIN_ORDER_TRANSITIONS[current.status as string] ?? [];
+      if (!allowedTransitions.includes(newStatus)) {
+        res.status(400).json({
+          status: 'fail',
+          message: `Cannot transition order from '${current.status}' to '${newStatus}'`,
+          allowedTransitions,
+        });
+        return;
+      }
+
+      const update: Record<string, unknown> = { status: newStatus };
+      // Auto-sync fulfillmentStatus for terminal delivery states
+      if (newStatus === 'delivered') update.fulfillmentStatus = 'delivered';
+      if (newStatus === 'returned') update.fulfillmentStatus = 'returned';
+      if (newStatus === 'dispatched') update.fulfillmentStatus = 'shipped';
+
       const order = await StorefrontOrderModel.findOneAndUpdate(
         { organizationId: ctx.organizationId, _id: req.params.orderId },
-        { $set: { status: req.body.status } },
+        { $set: update, $push: { timeline: { type: 'status_update', message: `Status changed to ${newStatus}`, at: new Date() } } as any },
         { new: true }
       ).lean();
       res.status(200).json({ status: 'success', data: order });
     } catch (err) { next(err); }
   };
+
 
   public assignDeliveryAgent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

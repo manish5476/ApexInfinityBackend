@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { StorefrontDeliveryAgentModel, StorefrontOrderModel } from '../../infrastructure/persistence';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const AGENT_JWT_SECRET = process.env.AGENT_JWT_SECRET || process.env.JWT_SECRET || 'changeme';
@@ -213,6 +213,7 @@ export class DeliveryAgentController {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return null;
     const token = authHeader.split(' ')[1];
+    if (!token) return null;
     try {
       const decoded = jwt.verify(token, AGENT_JWT_SECRET) as { agentId?: string; organizationId?: string; type?: string };
       if (decoded.type !== 'delivery_agent' || !decoded.agentId || !decoded.organizationId) return null;
