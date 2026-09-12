@@ -2,8 +2,15 @@ import { Router } from 'express';
 import { Connection } from 'mongoose';
 import { StorefrontAdminController } from './presentation/controllers/storefrontAdmin.controller';
 import { StorefrontPublicController } from './presentation/controllers/storefrontPublic.controller';
+import { DeliveryAgentController } from './presentation/controllers/deliveryAgent.controller';
+import { PlatformDeliveryController } from './presentation/controllers/platformDelivery.controller';
+import { StorefrontFormController } from './presentation/controllers/storefrontForm.controller';
 import { createStorefrontAdminRoutes } from './presentation/routes/storefrontAdmin.routes';
 import { createStorefrontPublicRoutes } from './presentation/routes/storefrontPublic.routes';
+import { createSmartRuleRoutes } from './presentation/routes/smartRule.routes';
+import { createDeliveryAgentRoutes } from './presentation/routes/delivery.routes';
+import { createPlatformDeliveryRoutes } from './presentation/routes/platformDelivery.routes';
+import { createStorefrontFormRoutes } from './presentation/routes/storefrontForm.routes';
 import { InMemoryStorefrontPageRepository } from './infrastructure/repositories/InMemoryStorefrontPageRepository';
 import { InMemoryStorefrontOrderRepository } from './infrastructure/repositories/InMemoryStorefrontOrderRepository';
 import { CreateStorefrontPageUseCase } from './application/use-cases/CreateStorefrontPageUseCase';
@@ -19,6 +26,15 @@ import { MongoUnitOfWork } from '../../infrastructure/database/MongoUnitOfWork';
 export interface StorefrontModule {
   adminRoutes: Router;
   publicRoutes: Router;
+  smartRuleRoutes: Router;
+  deliveryRoutes: Router;
+  platformDeliveryRoutes: Router;
+  formRoutes: Router;
+  adminController: StorefrontAdminController;
+  publicController: StorefrontPublicController;
+  deliveryAgentController: DeliveryAgentController;
+  platformDeliveryController: PlatformDeliveryController;
+  formController: StorefrontFormController;
 }
 
 export function createStorefrontModule(deps: {
@@ -42,10 +58,29 @@ export function createStorefrontModule(deps: {
   // Controllers
   const adminController = new StorefrontAdminController(createPageUC, publishPageUC, listPagesUC);
   const publicController = new StorefrontPublicController(getPageBySlugUC, createOrderUC);
+  const deliveryAgentController = new DeliveryAgentController();
+  const platformDeliveryController = new PlatformDeliveryController();
+  const formController = new StorefrontFormController();
 
   // Routes
   const adminRoutes = createStorefrontAdminRoutes(adminController, deps.tokenService);
   const publicRoutes = createStorefrontPublicRoutes(publicController);
+  const smartRuleRoutes = createSmartRuleRoutes(adminController, deps.tokenService);
+  const deliveryRoutes = createDeliveryAgentRoutes(deliveryAgentController, deps.tokenService);
+  const platformDeliveryRoutes = createPlatformDeliveryRoutes(platformDeliveryController, deps.tokenService);
+  const formRoutes = createStorefrontFormRoutes(formController, deps.tokenService);
 
-  return { adminRoutes, publicRoutes };
+  return {
+    adminRoutes,
+    publicRoutes,
+    smartRuleRoutes,
+    deliveryRoutes,
+    platformDeliveryRoutes,
+    formRoutes,
+    adminController,
+    publicController,
+    deliveryAgentController,
+    platformDeliveryController,
+    formController,
+  };
 }

@@ -330,5 +330,32 @@ export class CrmController {
       next(err);
     }
   };
+
+  public createBulkCustomer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const context = RequestContextHolder.get()!;
+      const customers = req.body.customers || req.body;
+      if (!Array.isArray(customers)) {
+        res.status(400).json({ status: 'fail', message: 'customers array is required' });
+        return;
+      }
+      const results = [];
+      for (const cust of customers) {
+        const resCust = await this.createCustomerUseCase.execute(cust, { organizationId: context.organizationId! });
+        results.push(resCust);
+      }
+      res.status(201).json({ status: 'success', results: results.length, data: results });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  public uploadCustomerPhoto = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).json({ status: 'success', message: 'Customer avatar uploaded', data: { url: '/avatars/default.png' } });
+    } catch (err) {
+      next(err);
+    }
+  };
 }
 

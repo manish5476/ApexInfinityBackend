@@ -80,6 +80,7 @@ export function createHrmsRoutes(
   router.post('/departments', dept.create);
   router.get('/departments/hierarchy', dept.getHierarchy);
   router.get('/departments/stats', dept.getStats);
+  router.get('/departments/stats/summary', dept.getStats);
   router.post('/departments/bulk', dept.bulkCreate);
   router.get('/departments/:id', dept.getById);
   router.patch('/departments/:id', dept.update);
@@ -95,6 +96,7 @@ export function createHrmsRoutes(
     router.get('/designations', desig.list);
     router.post('/designations', desig.create);
     router.get('/designations/hierarchy', desig.getHierarchy);
+    router.get('/designations/career-path/:id', desig.getCareerPath);
     router.get('/designations/salary-bands', desig.getSalaryBands);
     router.get('/designations/promotion-eligible', desig.getPromotionEligible);
     router.post('/designations/bulk', desig.bulkCreate);

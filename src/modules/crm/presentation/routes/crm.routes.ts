@@ -16,8 +16,10 @@ export function createCustomerRoutes(
   router.get('/search', controller.searchCustomers);
   router.get('/check-duplicate', controller.checkDuplicate);
   router.post('/bulk-update', controller.bulkUpdateCustomers);
+  router.post('/bulk-customer', controller.createBulkCustomer);
 
   // Specialized /:id sub-routes
+  router.patch('/:id/upload', controller.uploadCustomerPhoto);
   router.get('/:id/guaranteed-customers', controller.getGuaranteedCustomers);
   router.get('/:id/with-guarantors', controller.getCustomerWithGuarantors);
   router.patch('/:id/credit-limit', controller.updateCreditLimit);

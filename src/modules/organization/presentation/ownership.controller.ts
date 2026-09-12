@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
 import crypto from 'crypto';
-import { OrganizationDocument } from '../infrastructure/persistence/organization.model';
-import { TransferRequestDocument } from '../infrastructure/persistence/transferRequest.model';
-import { UserDocument } from '../../auth/infrastructure/persistence/user.model';
+import { OrganizationDocument, TransferRequestDocument } from '../infrastructure/persistence';
+import { UserDocument } from '../../auth/infrastructure/persistence';
 import { AuthenticatedUser } from '../../../middleware/auth.middleware';
 import { IEmailSender } from '../../../infrastructure/email/IEmailSender';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../../shared/errors';

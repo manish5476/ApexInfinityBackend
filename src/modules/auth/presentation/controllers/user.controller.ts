@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { UserDocument } from '../../infrastructure/persistence/user.model';
-import { RoleDocument } from '../../infrastructure/persistence/role.model';
-import { SessionDocument } from '../../infrastructure/persistence/session.model';
+import { UserDocument, RoleDocument, SessionDocument } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { IPasswordHasher } from '../../../../infrastructure/security/IPasswordHasher';
 import { ITokenService } from '../../../../infrastructure/security/ITokenService';

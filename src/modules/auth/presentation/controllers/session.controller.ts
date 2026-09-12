@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { SessionDocument } from '../../infrastructure/persistence/session.model';
+import { SessionDocument } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../../../shared/errors';
 

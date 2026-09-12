@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { EmiDocument, EmiInstallment } from '../../infrastructure/persistence/emi.model';
+import { EmiDocument, EmiInstallment } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { BadRequestError, NotFoundError } from '../../../../shared/errors';
 import crypto from 'crypto';

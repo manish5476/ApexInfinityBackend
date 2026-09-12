@@ -1,4 +1,4 @@
-import { Schema, Document, Connection, Model } from 'mongoose';
+import mongoose, { Schema, Document, Connection, Model } from 'mongoose';
 import { UserPersistenceData } from '../../application/mappers/UserMapper';
 
 export interface UserDocument extends Document<string>, UserPersistenceData {
@@ -36,3 +36,7 @@ export function getUserModel(connection: Connection): Model<UserDocument> {
     connection.model<UserDocument>('User', UserSchema)
   );
 }
+
+export const UserModel = (mongoose.models.User as Model<UserDocument>) ||
+  mongoose.model<UserDocument>('User', UserSchema);
+

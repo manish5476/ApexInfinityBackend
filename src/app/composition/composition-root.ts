@@ -25,6 +25,8 @@ import { createLogisticsModule, LogisticsModule } from '../../modules/logistics'
 import { createAdminPlatformModule, AdminPlatformModule } from '../../modules/admin-platform';
 import { createAnalyticsModule, AnalyticsModule } from '../../modules/analytics';
 import { createAiAgentModule, AiAgentModule } from '../../modules/ai-agent';
+import { createSearchModule, SearchModule } from '../../modules/search';
+import { createSystemOpsModule, SystemOpsModule } from '../../modules/system-ops';
 import { MongoUnitOfWork } from '../../infrastructure/database/MongoUnitOfWork';
 
 export interface ApplicationDependencies {
@@ -58,6 +60,8 @@ export interface ApplicationModules {
   adminPlatform: AdminPlatformModule;
   analytics: AnalyticsModule;
   aiAgent: AiAgentModule;
+  search: SearchModule;
+  systemOps: SystemOpsModule;
 }
 
 export interface ApplicationContainer {
@@ -184,6 +188,7 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
   // 16. Admin Platform Module
   const adminPlatform = createAdminPlatformModule({
     connection: deps.connection,
+    tokenService: deps.tokenService,
   });
 
   // 17. Analytics & BI Module
@@ -194,6 +199,16 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
   // 18. AI Agent & Chat Communication Module
   const aiAgent = createAiAgentModule({
     connection: deps.connection,
+  });
+
+  // 19. Global Multi-Entity Search Module
+  const search = createSearchModule({
+    tokenService: deps.tokenService,
+  });
+
+  // 20. System Operations Module (Cron, Logs, Dashboard)
+  const systemOps = createSystemOpsModule({
+    tokenService: deps.tokenService,
   });
 
   deps.logger.info('[composition] Application modules wired successfully.');
@@ -219,6 +234,8 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
       adminPlatform,
       analytics,
       aiAgent,
+      search,
+      systemOps,
     },
   };
 }

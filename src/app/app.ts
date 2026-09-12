@@ -23,6 +23,7 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/sessions', container.modules.auth.sessionRoutes);
   apiRouter.use('/organizations', container.modules.organization.routes);
   apiRouter.use('/organization', container.modules.organization.routes);
+  apiRouter.use('/neworganization', container.modules.organization.extrasRoutes);
   apiRouter.use('/ownership', container.modules.organization.ownershipRoutes);
   apiRouter.use('/branches', container.modules.organization.branchRoutes);
   apiRouter.use('/hrms', container.modules.hrms.routes);
@@ -34,6 +35,8 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/stock', container.modules.inventory.stockRoutes);
   apiRouter.use('/purchases', container.modules.inventory.purchaseRoutes);
   apiRouter.use('/sales', container.modules.inventory.salesRoutes);
+  apiRouter.use('/sales-returns', container.modules.inventory.salesReturnRoutes);
+  apiRouter.use('/sales/returns', container.modules.inventory.salesReturnRoutes);
   apiRouter.use('/accounting', container.modules.accounting.routes);
   apiRouter.use('/invoices/pdf', container.modules.accounting.invoicePdfRoutes);
   apiRouter.use('/invoices', container.modules.accounting.invoiceRoutes);
@@ -45,8 +48,12 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/reconciliation', container.modules.accounting.reconciliationRoutes);
   apiRouter.use('/transactions', container.modules.accounting.transactionRoutes);
   apiRouter.use('/partytransactions', container.modules.accounting.partyTransactionRoutes);
+  apiRouter.use('/admin/storefront/smart-rules', container.modules.storefront.smartRuleRoutes);
+  apiRouter.use('/admin/storefront/forms', container.modules.storefront.formRoutes);
   apiRouter.use('/admin/storefront', container.modules.storefront.adminRoutes);
   apiRouter.use('/store', container.modules.storefront.publicRoutes);
+  apiRouter.use('/delivery-agent', container.modules.storefront.deliveryRoutes);
+  apiRouter.use('/platform-delivery', container.modules.storefront.platformDeliveryRoutes);
   apiRouter.use('/notifications', container.modules.notification.routes);
   apiRouter.use('/announcements', container.modules.notification.announcementRoutes);
   apiRouter.use('/webhooks', container.modules.webhook.routes);
@@ -60,6 +67,7 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/field-service/work-assignments', container.modules.fieldService.router);
   apiRouter.use('/assets', container.modules.mediaAssets.router);
   apiRouter.use('/logistics', container.modules.logistics.router);
+  apiRouter.use('/admin', container.modules.adminPlatform.adminAnalyticsRoutes);
   apiRouter.use('/admin/platform', container.modules.adminPlatform.platformRouter);
   apiRouter.use('/internal/platform', container.modules.adminPlatform.internalRouter);
   apiRouter.use('/analytics', container.modules.analytics.analyticsRouter);
@@ -68,6 +76,10 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/feed', container.modules.analytics.feedRouter);
   apiRouter.use('/ai-agent', container.modules.aiAgent.aiAgentRouter);
   apiRouter.use('/chat', container.modules.aiAgent.chatRouter);
+  apiRouter.use('/search', container.modules.search.routes);
+  apiRouter.use('/cron', container.modules.systemOps.cronRoutes);
+  apiRouter.use('/logs', container.modules.systemOps.logRoutes);
+  apiRouter.use('/dashboard', container.modules.systemOps.dashboardRoutes);
 
   app.use('/api/v1', apiRouter);
 

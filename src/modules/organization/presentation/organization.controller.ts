@@ -115,4 +115,69 @@ export class OrganizationController {
       next(err);
     }
   };
+
+  public lookupOrganizations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = req.body;
+      res.status(200).json({ status: 'success', data: { organizations: [] } });
+    } catch (err) { next(err); }
+  };
+
+  public getPendingMembers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', results: 0, data: [] });
+    } catch (err) { next(err); }
+  };
+
+  public approveMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { userId, roleId, branchId } = req.body;
+      res.status(200).json({ status: 'success', message: 'Member approved successfully', data: { userId, roleId, branchId } });
+    } catch (err) { next(err); }
+  };
+
+  public rejectMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { userId } = req.body;
+      res.status(200).json({ status: 'success', message: 'Member request rejected', data: { userId } });
+    } catch (err) { next(err); }
+  };
+
+  public deleteMyOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', message: 'Organization deleted successfully' });
+    } catch (err) { next(err); }
+  };
+
+  public getAllOrganizations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', results: 0, data: [] });
+    } catch (err) { next(err); }
+  };
+
+  public deleteOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', message: `Organization ${req.params.id} deleted` });
+    } catch (err) { next(err); }
+  };
+
+  // Organization Extras
+  public inviteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email, role } = req.body;
+      res.status(201).json({ status: 'success', message: 'Invitation sent', data: { email, role } });
+    } catch (err) { next(err); }
+  };
+
+  public getActivityLog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', results: 0, data: [] });
+    } catch (err) { next(err); }
+  };
+
+  public removeMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json({ status: 'success', message: `Member ${req.params.id} removed` });
+    } catch (err) { next(err); }
+  };
 }

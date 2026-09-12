@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { SupplierDocument } from '../../infrastructure/persistence/supplier.model';
+import { SupplierDocument } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { BadRequestError, NotFoundError } from '../../../../shared/errors';
 import crypto from 'crypto';

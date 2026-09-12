@@ -1,4 +1,4 @@
-import { Schema, Document, Connection, Model } from 'mongoose';
+import mongoose, { Schema, Document, Connection, Model } from 'mongoose';
 import { OrganizationPersistenceData } from '../../application/mappers/OrganizationMapper';
 
 export interface OrganizationDocument extends Document<string>, OrganizationPersistenceData {
@@ -45,3 +45,8 @@ export function getOrganizationModel(connection: Connection): Model<Organization
     connection.model<OrganizationDocument>('Organization', OrganizationSchema)
   );
 }
+
+export const OrganizationModel =
+  (mongoose.models.Organization as Model<OrganizationDocument>) ||
+  mongoose.model<OrganizationDocument>('Organization', OrganizationSchema);
+

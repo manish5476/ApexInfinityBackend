@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { PendingReconciliationDocument } from '../../infrastructure/persistence/reconciliation.model';
-import { EmiDocument } from '../../infrastructure/persistence/emi.model';
+import { PendingReconciliationDocument, EmiDocument } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { BadRequestError, NotFoundError } from '../../../../shared/errors';
 import crypto from 'crypto';

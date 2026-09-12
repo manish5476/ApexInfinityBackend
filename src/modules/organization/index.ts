@@ -19,6 +19,7 @@ import { DeleteBranchUseCase } from './application/use-cases/DeleteBranchUseCase
 import { OrganizationController } from './presentation/organization.controller';
 import { BranchController } from './presentation/branch.controller';
 import { createOrganizationRoutes } from './presentation/organization.routes';
+import { createOrganizationExtrasRoutes } from './presentation/organizationExtras.routes';
 import { createBranchRoutes } from './presentation/branch.routes';
 import { IEventBus } from '../../infrastructure/messaging/IEventBus';
 import { ITokenService } from '../../infrastructure/security/ITokenService';
@@ -52,6 +53,7 @@ export interface OrganizationModule {
   controller: OrganizationController;
   ownershipController: OwnershipController;
   routes: Router;
+  extrasRoutes: Router;
   branchRoutes: Router;
   ownershipRoutes: Router;
 }
@@ -100,6 +102,7 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
   );
 
   const routes = createOrganizationRoutes(controller, deps.tokenService);
+  const extrasRoutes = createOrganizationExtrasRoutes(controller, deps.tokenService);
   const dummyTokenService: ITokenService = deps.tokenService || {
     generateToken: () => '',
     generateRefreshToken: () => '',
@@ -118,6 +121,7 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     controller,
     ownershipController,
     routes,
+    extrasRoutes,
     branchRoutes,
     ownershipRoutes,
   };

@@ -1,4 +1,4 @@
-import { Schema, Document, Connection, Model } from 'mongoose';
+import mongoose, { Schema, Document, Connection, Model } from 'mongoose';
 
 export interface SupplierDocument extends Document<string> {
   _id: string;
@@ -127,3 +127,6 @@ export function getSupplierModel(connection: Connection): Model<SupplierDocument
     connection.model<SupplierDocument>('Supplier', SupplierSchema)
   );
 }
+
+export const SupplierModel = (mongoose.models.Supplier as Model<SupplierDocument>) ||
+  mongoose.model<SupplierDocument>('Supplier', SupplierSchema);

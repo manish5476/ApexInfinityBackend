@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Connection } from 'mongoose';
 import { InventoryController } from './presentation/controllers/inventory.controller';
+import { SalesReturnController } from './presentation/controllers/salesReturn.controller';
 import {
   createInventoryRoutes,
   createProductRoutes,
@@ -8,6 +9,9 @@ import {
   createPurchaseRoutes,
   createSalesRoutes,
 } from './presentation/routes/inventory.routes';
+import { createSalesReturnRoutes } from './presentation/routes/salesReturn.routes';
+import { getSalesReturnModel } from './infrastructure/persistence/salesReturn.model';
+import { ProductModel } from './infrastructure/persistence/product.model';
 import { MongoProductRepository } from './infrastructure/repositories/MongoProductRepository';
 import { MongoPurchaseOrderRepository } from './infrastructure/repositories/MongoPurchaseOrderRepository';
 import { MongoSalesOrderRepository } from './infrastructure/repositories/MongoSalesOrderRepository';
@@ -47,6 +51,7 @@ export interface InventoryModule {
   stockRoutes: Router;
   purchaseRoutes: Router;
   salesRoutes: Router;
+  salesReturnRoutes: Router;
   productRepo: IProductRepository;
   poRepo: IPurchaseOrderRepository;
   soRepo: ISalesOrderRepository;
@@ -93,7 +98,7 @@ export function createInventoryModule(deps: {
   const dispatchSOUC = new DispatchSalesOrderUseCase(soRepo, productRepo, deps.eventBus, uow);
   const cancelSOUC = new CancelSalesOrderUseCase(soRepo);
 
-  // Controller
+  // Controllers
   const controller = new InventoryController(
     createProductUC,
     listProductsUC,
@@ -119,12 +124,16 @@ export function createInventoryModule(deps: {
     cancelSOUC
   );
 
+  const salesReturnModel = getSalesReturnModel(deps.connection);
+  const salesReturnController = new SalesReturnController(salesReturnModel, ProductModel);
+
   // Routes
   const routes = createInventoryRoutes(controller, deps.tokenService);
   const productRoutes = createProductRoutes(controller, deps.tokenService);
   const stockRoutes = createStockRoutes(controller, deps.tokenService);
   const purchaseRoutes = createPurchaseRoutes(controller, deps.tokenService);
   const salesRoutes = createSalesRoutes(controller, deps.tokenService);
+  const salesReturnRoutes = createSalesReturnRoutes(salesReturnController, deps.tokenService);
 
   return {
     routes,
@@ -132,6 +141,7 @@ export function createInventoryModule(deps: {
     stockRoutes,
     purchaseRoutes,
     salesRoutes,
+    salesReturnRoutes,
     productRepo,
     poRepo,
     soRepo,

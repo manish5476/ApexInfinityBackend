@@ -106,12 +106,24 @@ export function createLedgerRoutes(controller: AccountingController, tokenServic
   const authGuard = createAuthMiddleware(tokenService);
   router.use(authGuard);
 
+  // Specialized Reports & Summaries
+  router.get('/summary/org', controller.getOrganizationLedgerSummary);
   router.get('/summary/trial-balance', controller.getTrialBalanceHandler);
   router.get('/summary/profit-loss', controller.getProfitLossHandler);
   router.get('/summary/balance-sheet', controller.getBalanceSheetHandler);
+  router.get('/summary/retained-earnings', controller.getRetainedEarningsHandler);
+  router.get('/cash-flow', controller.getCashFlowHandler);
+
+  // Party & Account Ledgers
   router.get('/customer/:customerId', controller.getCustomerLedgerHandler);
+  router.get('/supplier/:supplierId', controller.getSupplierLedgerHandler);
+  router.get('/export', controller.exportLedgersHandler);
   router.get('/account/:accountId', controller.getAccountLedgerHandler);
+
+  // Core CRUD
   router.get('/', controller.listLedgerEntriesHandler);
+  router.get('/:id', controller.getLedgerHandler);
+  router.delete('/:id', controller.deleteLedgerHandler);
 
   return router;
 }

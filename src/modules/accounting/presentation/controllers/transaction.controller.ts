@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Model } from 'mongoose';
-import { IAccountEntryDoc } from '../../infrastructure/persistence/accountEntry.model';
+import { IAccountEntryDoc } from '../../infrastructure/persistence';
 import { AuthenticatedUser } from '../../../../middleware/auth.middleware';
 import { BadRequestError } from '../../../../shared/errors';
 
