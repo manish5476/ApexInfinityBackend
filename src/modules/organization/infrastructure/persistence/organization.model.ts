@@ -52,7 +52,6 @@ export const OrganizationSchema = new Schema<OrganizationDocument>(
 
 // Indexes
 OrganizationSchema.index({ name: 'text' });
-OrganizationSchema.index({ uniqueShopId: 1 }, { unique: true });
 
 export function getOrganizationModel(connection: Connection): Model<OrganizationDocument> {
   return (

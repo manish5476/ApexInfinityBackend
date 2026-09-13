@@ -72,6 +72,22 @@ export class LoginUseCase implements IUseCase<LoginDto, AuthResultDto> {
         );
       }
 
+      if (user.status === 'pending') {
+        return Result.fail(
+          new UnauthorizedError('Your account is pending approval by the organization administrator.')
+        );
+      }
+      if (user.status === 'rejected') {
+        return Result.fail(
+          new UnauthorizedError('Your registration request was rejected.')
+        );
+      }
+      if (user.status === 'suspended') {
+        return Result.fail(
+          new UnauthorizedError('Your account has been suspended. Please contact your organization administrator.')
+        );
+      }
+
       const isValidPassword = await this.passwordHasher.compare(input.password, user.passwordHash);
       if (!isValidPassword) {
         return Result.fail(new UnauthorizedError('Invalid email or password.'));

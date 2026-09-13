@@ -21,18 +21,37 @@ export class JwtTokenService implements ITokenService {
   }
 
   public generateToken(payload: TokenPayload, expiresIn?: string): string {
-    return jwt.sign({ ...payload, tokenType: 'access' }, this.secret, {
-      expiresIn: (expiresIn || this.defaultExpiresIn) as jwt.SignOptions['expiresIn'],
-    });
+    const userId = payload.userId || (payload as any).id;
+    return jwt.sign(
+      {
+        ...payload,
+        userId,
+        id: userId,
+        sub: userId,
+        type: 'merchant_user',
+        tokenType: 'access',
+      },
+      this.secret,
+      {
+        expiresIn: (expiresIn || this.defaultExpiresIn) as jwt.SignOptions['expiresIn'],
+      }
+    );
   }
 
   public verifyToken<T extends TokenPayload = TokenPayload>(token: string): T {
     try {
-      const decoded = jwt.verify(token, this.secret) as T;
+      const decoded = jwt.verify(token, this.secret) as any;
       if (decoded.tokenType === 'refresh') {
         throw new UnauthorizedError('Invalid authentication token.');
       }
-      return decoded;
+      // Normalize legacy and framework user identity claims
+      if (!decoded.userId && (decoded.id || decoded.sub)) {
+        decoded.userId = decoded.id || decoded.sub;
+      }
+      if (!decoded.id && decoded.userId) {
+        decoded.id = decoded.userId;
+      }
+      return decoded as T;
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         throw err;

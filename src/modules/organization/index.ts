@@ -33,6 +33,7 @@ import { IEmailSender } from '../../infrastructure/email/IEmailSender';
 import { IPasswordHasher } from '../../infrastructure/security/IPasswordHasher';
 import { getTransferRequestModel } from './infrastructure/persistence/transferRequest.model';
 import { getUserModel } from '../auth/infrastructure/persistence/user.model';
+import { OrganizationMemberService } from './infrastructure/services/OrganizationMemberService';
 import { OwnershipController } from './presentation/ownership.controller';
 import { createOwnershipRoutes } from './presentation/ownership.routes';
 
@@ -87,7 +88,16 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
   const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
 
-  const controller = new OrganizationController(createUseCase, getByIdUseCase, updateUseCase, getMyOrgUseCase, repository, deps.connection, deps.passwordHasher);
+  const memberService = new OrganizationMemberService(deps.connection);
+  const controller = new OrganizationController(
+    createUseCase,
+    getByIdUseCase,
+    updateUseCase,
+    getMyOrgUseCase,
+    repository,
+    memberService,
+    deps.passwordHasher
+  );
   const branchController = new BranchController(
     createBranchUseCase,
     listBranchesUseCase,

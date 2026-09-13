@@ -61,4 +61,12 @@ StorefrontPageSchema.index({ organizationId: 1, slug: 1 }, { unique: true });
 StorefrontPageSchema.index({ organizationId: 1, isHomepage: 1 });
 StorefrontPageSchema.index({ organizationId: 1, status: 1 });
 
-export const StorefrontPageModel = mongoose.model<IStorefrontPageDoc>('FwStorefrontPage', StorefrontPageSchema);
+export function getStorefrontPageModel(connection: mongoose.Connection): mongoose.Model<IStorefrontPageDoc> {
+  return (
+    (connection.models.FwStorefrontPage as mongoose.Model<IStorefrontPageDoc>) ||
+    connection.model<IStorefrontPageDoc>('FwStorefrontPage', StorefrontPageSchema)
+  );
+}
+
+export const StorefrontPageModel = (mongoose.models.FwStorefrontPage as mongoose.Model<IStorefrontPageDoc>) ||
+  mongoose.model<IStorefrontPageDoc>('FwStorefrontPage', StorefrontPageSchema);

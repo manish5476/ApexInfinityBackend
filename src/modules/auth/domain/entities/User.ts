@@ -12,6 +12,9 @@ export interface UserProps {
   roles: string[];
   permissions: string[];
   isActive: boolean;
+  isOwner?: boolean;
+  isSuperAdmin?: boolean;
+  status?: string;
   phone?: string;
   emailVerified: boolean;
   emailVerificationTokenHash?: string;
@@ -30,6 +33,9 @@ export class User extends AggregateRoot<string> {
   private _roles: string[];
   private _permissions: string[];
   private _isActive: boolean;
+  private _isOwner?: boolean;
+  private _isSuperAdmin?: boolean;
+  private _status?: string;
   private _phone?: string;
   private _emailVerified: boolean;
   private _emailVerificationTokenHash?: string;
@@ -48,6 +54,9 @@ export class User extends AggregateRoot<string> {
     this._roles = props.roles;
     this._permissions = props.permissions;
     this._isActive = props.isActive;
+    this._isOwner = props.isOwner;
+    this._isSuperAdmin = props.isSuperAdmin;
+    this._status = props.status;
     this._phone = props.phone;
     this._emailVerified = props.emailVerified;
     this._emailVerificationTokenHash = props.emailVerificationTokenHash;
@@ -66,6 +75,9 @@ export class User extends AggregateRoot<string> {
     roles?: string[];
     permissions?: string[];
     phone?: string;
+    status?: string;
+    isOwner?: boolean;
+    isSuperAdmin?: boolean;
   }): User {
     if (!params.name || params.name.trim().length === 0) {
       throw new DomainError('User name cannot be empty.');
@@ -86,6 +98,9 @@ export class User extends AggregateRoot<string> {
       roles: params.roles || ['user'],
       permissions: params.permissions || [],
       isActive: true,
+      isOwner: params.isOwner ?? false,
+      isSuperAdmin: params.isSuperAdmin ?? false,
+      status: params.status || 'approved',
       phone: params.phone,
       emailVerified: false,
       createdAt: now,
@@ -131,6 +146,18 @@ export class User extends AggregateRoot<string> {
 
   public get isActive(): boolean {
     return this._isActive;
+  }
+
+  public get isOwner(): boolean {
+    return this._isOwner ?? false;
+  }
+
+  public get isSuperAdmin(): boolean {
+    return this._isSuperAdmin ?? false;
+  }
+
+  public get status(): string {
+    return this._status || 'approved';
   }
 
   public get phone(): string | undefined {

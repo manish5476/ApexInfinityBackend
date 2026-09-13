@@ -22,7 +22,7 @@ Welcome to the **Apex Infinity** Modular Monolith Platform API Documentation.
 
 ### Architecture Highlights:
 - **Clean Architecture & Domain-Driven Design**: Explicit Application Use Cases → Pure Domain Entities → Concrete Mongoose Repositories.
-- **Strict Multi-Tenant Isolation**: Every database query is tenant-scoped via validated JWT claim or \`x-organization-id\`.
+- **Strict Multi-Tenant Isolation**: Every database query is tenant-scoped via the validated JWT token claim. Clients cannot spoof tenants via arbitrary request headers.
 - **Real Business Truth**: All metrics and reports are live MongoDB aggregations with 0% mock data.
 - **Real-Time WebSockets**: Full Socket.IO server mounted on the same HTTP runtime for live chat, presence, and alerts.
 
@@ -97,7 +97,7 @@ Welcome to the **Apex Infinity** Modular Monolith Platform API Documentation.
         type: 'apiKey',
         in: 'header',
         name: 'x-organization-id',
-        description: 'Optional explicit organization tenant ID header',
+        description: 'Informational client context header. Note: Authoritative tenant isolation is always enforced strictly from the authenticated Bearer JWT claim.',
       },
     },
     schemas: {
@@ -165,15 +165,263 @@ Welcome to the **Apex Infinity** Modular Monolith Platform API Documentation.
         properties: {
           token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
           refreshToken: { type: 'string', example: 'd3b07384d113edec49eaa6238ad5ff00...' },
+          expiresIn: { type: 'number', example: 86400 },
+          sessionId: { type: 'string', example: 'ses-65e123abc' },
           user: {
             type: 'object',
             properties: {
               id: { type: 'string', example: 'usr-001' },
-              email: { type: 'string', example: 'admin@apex.local' },
+              email: { type: 'string', example: 'user@shivam.com' },
               name: { type: 'string', example: 'System Administrator' },
               role: { type: 'string', example: 'admin' },
+              roles: { type: 'array', items: { type: 'string' }, example: ['admin'] },
               organizationId: { type: 'string', example: 'org-main' },
+              uniqueShopId: { type: 'string', example: 'shivam' },
             },
+          },
+        },
+      },
+      RegisterRequest: {
+        type: 'object',
+        required: ['name', 'email', 'password'],
+        properties: {
+          name: { type: 'string', example: 'Shivam Patel' },
+          email: { type: 'string', format: 'email', example: 'shivam@apex.local' },
+          password: { type: 'string', minLength: 8, example: 'SuperSecurePassword123!' },
+          passwordConfirm: { type: 'string', example: 'SuperSecurePassword123!' },
+          uniqueShopId: { type: 'string', example: 'shivam' },
+          organizationSlug: { type: 'string', example: 'shivam' },
+          organizationName: { type: 'string', example: 'Shivam Retailers' },
+          organizationId: { type: 'string', example: 'org-65e123' },
+          phone: { type: 'string', example: '+919876543210' },
+          roles: { type: 'array', items: { type: 'string' }, example: ['user'] },
+        },
+      },
+      UpdatePasswordRequest: {
+        type: 'object',
+        required: ['passwordCurrent', 'password'],
+        properties: {
+          passwordCurrent: { type: 'string', example: 'OldSuperSecurePassword123!' },
+          password: { type: 'string', minLength: 8, example: 'NewSuperSecurePassword456!' },
+          passwordConfirm: { type: 'string', example: 'NewSuperSecurePassword456!' },
+        },
+      },
+      ForgotPasswordRequest: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'user@shivam.com' },
+        },
+      },
+      ResetPasswordRequest: {
+        type: 'object',
+        required: ['password'],
+        properties: {
+          password: { type: 'string', minLength: 8, example: 'NewSuperSecurePassword456!' },
+          passwordConfirm: { type: 'string', example: 'NewSuperSecurePassword456!' },
+        },
+      },
+      CreateOrganizationRequest: {
+        type: 'object',
+        required: ['organizationName', 'ownerName', 'ownerEmail', 'ownerPassword'],
+        properties: {
+          organizationName: { type: 'string', example: 'Shivam Electronics Pvt Ltd' },
+          slug: { type: 'string', example: 'shivam-electronics' },
+          uniqueShopId: { type: 'string', example: 'shivam' },
+          primaryEmail: { type: 'string', format: 'email', example: 'owner@shivam.com' },
+          primaryPhone: { type: 'string', example: '+919876543210' },
+          gstNumber: { type: 'string', example: '27AAAAA0000A1Z5' },
+          mainBranchName: { type: 'string', example: 'Main Headquarters' },
+          mainBranchAddress: {
+            type: 'object',
+            properties: {
+              street: { type: 'string', example: 'MG Road' },
+              city: { type: 'string', example: 'Mumbai' },
+              state: { type: 'string', example: 'Maharashtra' },
+              zipCode: { type: 'string', example: '400001' },
+              country: { type: 'string', example: 'India' },
+            },
+          },
+          ownerName: { type: 'string', example: 'Shivam Patel' },
+          ownerEmail: { type: 'string', format: 'email', example: 'owner@shivam.com' },
+          ownerPassword: { type: 'string', minLength: 8, example: 'SuperSecurePassword123!' },
+        },
+      },
+      CreateOrganizationResponse: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'success' },
+          data: {
+            type: 'object',
+            properties: {
+              organization: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: 'org-65e123' },
+                  name: { type: 'string', example: 'Shivam Electronics Pvt Ltd' },
+                  slug: { type: 'string', example: 'shivam-electronics' },
+                  uniqueShopId: { type: 'string', example: 'shivam' },
+                  primaryEmail: { type: 'string', example: 'owner@shivam.com' },
+                },
+              },
+              owner: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: 'usr-65e123' },
+                  name: { type: 'string', example: 'Shivam Patel' },
+                  email: { type: 'string', example: 'owner@shivam.com' },
+                },
+              },
+              accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+              refreshToken: { type: 'string', example: 'd3b07384d113edec49eaa6238ad5ff00...' },
+              setup: {
+                type: 'object',
+                properties: {
+                  branch: { type: 'string' },
+                  role: { type: 'string' },
+                  shift: { type: 'string' },
+                  department: { type: 'string' },
+                  designation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+      UpdateOrganizationRequest: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', example: 'Shivam Global Enterprises' },
+          primaryEmail: { type: 'string', format: 'email', example: 'contact@shivam.com' },
+          primaryPhone: { type: 'string', example: '+919876543210' },
+          secondaryEmail: { type: 'string', format: 'email' },
+          secondaryPhone: { type: 'string' },
+          gstNumber: { type: 'string', example: '27AAAAA0000A1Z5' },
+          uniqueShopId: { type: 'string', example: 'shivam' },
+          logo: { type: 'string', format: 'uri' },
+          address: {
+            type: 'object',
+            properties: {
+              street: { type: 'string' },
+              city: { type: 'string' },
+              state: { type: 'string' },
+              zipCode: { type: 'string' },
+              country: { type: 'string' },
+            },
+          },
+          settings: {
+            type: 'object',
+            properties: {
+              currency: { type: 'string', example: 'INR' },
+              timezone: { type: 'string', example: 'Asia/Kolkata' },
+              financialYearStart: { type: 'string', example: '04-01' },
+            },
+          },
+          platformDelivery: {
+            type: 'object',
+            properties: {
+              enabled: { type: 'boolean', example: true },
+            },
+          },
+        },
+      },
+      CreateBranchRequest: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', example: 'Andheri West Warehouse' },
+          branchCode: { type: 'string', example: 'AND-001' },
+          address: {
+            type: 'object',
+            properties: {
+              street: { type: 'string', example: 'Link Road' },
+              city: { type: 'string', example: 'Mumbai' },
+              state: { type: 'string', example: 'Maharashtra' },
+              zipCode: { type: 'string', example: '400053' },
+              country: { type: 'string', example: 'India' },
+            },
+          },
+          phone: { type: 'string', example: '+919876543211' },
+          email: { type: 'string', format: 'email', example: 'branch.andheri@shivam.com' },
+          isMainBranch: { type: 'boolean', default: false },
+        },
+      },
+      BranchResponse: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'br-65e123' },
+          organizationId: { type: 'string', example: 'org-65e123' },
+          name: { type: 'string', example: 'Andheri West Warehouse' },
+          branchCode: { type: 'string', example: 'AND-001' },
+          phone: { type: 'string' },
+          email: { type: 'string' },
+          isMainBranch: { type: 'boolean', example: false },
+          isActive: { type: 'boolean', example: true },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      CreateUserRequest: {
+        type: 'object',
+        required: ['name', 'email', 'password'],
+        properties: {
+          name: { type: 'string', example: 'John Doe' },
+          email: { type: 'string', format: 'email', example: 'john.doe@shivam.com' },
+          password: { type: 'string', minLength: 8, example: 'TempPass123!' },
+          role: { type: 'string', example: 'staff' },
+          roles: { type: 'array', items: { type: 'string' }, example: ['staff'] },
+          department: { type: 'string', example: 'Sales' },
+          designation: { type: 'string', example: 'Sales Executive' },
+          phone: { type: 'string', example: '+919876543212' },
+          branchId: { type: 'string', example: 'br-65e123' },
+        },
+      },
+      UpdateUserRequest: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', example: 'John Doe' },
+          phone: { type: 'string', example: '+919876543212' },
+          role: { type: 'string', example: 'manager' },
+          department: { type: 'string', example: 'Sales' },
+          designation: { type: 'string', example: 'Senior Sales Executive' },
+          branchId: { type: 'string', example: 'br-65e123' },
+          isActive: { type: 'boolean', example: true },
+        },
+      },
+      CreateRoleRequest: {
+        type: 'object',
+        required: ['name', 'permissions'],
+        properties: {
+          name: { type: 'string', example: 'Store Manager' },
+          description: { type: 'string', example: 'Manages sales orders, inventory, and storefront' },
+          permissions: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['product:read', 'product:create', 'sales:manage', 'customer:read'],
+          },
+          isDefault: { type: 'boolean', default: false },
+          isSuperAdmin: { type: 'boolean', default: false },
+        },
+      },
+      InitiateOwnershipTransferRequest: {
+        type: 'object',
+        required: ['userId'],
+        properties: {
+          userId: {
+            type: 'string',
+            description: 'User ID of the nominated owner within the same organization',
+            example: 'usr-65e456',
+          },
+        },
+      },
+      FinalizeOwnershipTransferRequest: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: {
+            type: 'string',
+            description: 'One-time secure transfer token sent to new owner email',
+            example: '3f7b2c9a8d4e5f60718293a4b5c6d7e8',
           },
         },
       },

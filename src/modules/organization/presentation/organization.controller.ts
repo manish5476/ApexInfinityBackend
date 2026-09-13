@@ -1,6 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { Connection } from 'mongoose';
-import crypto from 'crypto';
 import { CreateOrganizationUseCase } from '../application/use-cases/CreateOrganizationUseCase';
 import { GetOrganizationByIdUseCase } from '../application/use-cases/GetOrganizationByIdUseCase';
 import { UpdateOrganizationUseCase } from '../application/use-cases/UpdateOrganizationUseCase';
@@ -12,10 +10,8 @@ import { ApiResponseFactory } from '../../../shared/contracts';
 import { RequestContextHolder } from '../../../middleware/requestContext.middleware';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../../shared/errors';
 import { IPasswordHasher } from '../../../infrastructure/security/IPasswordHasher';
-import { getUserModel } from '../../auth/infrastructure/persistence/user.model';
-import { getRoleModel } from '../../auth/infrastructure/persistence/role.model';
-import { getEmployeeModel } from '../../hrms/infrastructure/persistence/employee.model';
 import { AuthenticatedUser } from '../../../middleware/auth.middleware';
+import { OrganizationMemberService } from '../infrastructure/services/OrganizationMemberService';
 
 export class OrganizationController {
   private readonly mapper = new OrganizationMapper();
@@ -26,7 +22,7 @@ export class OrganizationController {
     private readonly updateUseCase: UpdateOrganizationUseCase,
     private readonly getMyOrgUseCase: GetMyOrganizationUseCase,
     private readonly orgRepo: IOrganizationRepository,
-    private readonly connection: Connection,
+    private readonly memberService: OrganizationMemberService,
     private readonly passwordHasher: IPasswordHasher
   ) {}
 
@@ -75,14 +71,11 @@ export class OrganizationController {
         return next(result.getError());
       }
 
-      const UserModel = getUserModel(this.connection);
-      const members = await UserModel.find({ organizationId: orgId, status: { $ne: 'rejected' } })
-        .populate('roles')
-        .lean();
+      const members = await this.memberService.getMembers(orgId);
 
       res.status(200).json(ApiResponseFactory.success({
         ...this.mapper.toDto(result.getValue()),
-        members
+        members,
       }));
     } catch (err) {
       next(err);
@@ -150,19 +143,7 @@ export class OrganizationController {
         return next(new BadRequestError('Email is required'));
       }
 
-      const UserModel = getUserModel(this.connection);
-      const users = await UserModel.find({ email }).lean();
-      
-      const organizations: any[] = [];
-      const orgIds = [...new Set(users.map(u => u.organizationId).filter(id => id))];
-
-      for (const orgId of orgIds) {
-        const org = await this.orgRepo.findById(orgId as string);
-        if (org) {
-          organizations.push({ name: org.name, uniqueShopId: org.uniqueShopId });
-        }
-      }
-
+      const organizations = await this.memberService.lookupOrganizationsByEmail(email, this.orgRepo);
       res.status(200).json(ApiResponseFactory.success({ organizations, message: 'Organizations fetched successfully' }));
     } catch (err) {
       next(err);
@@ -177,12 +158,7 @@ export class OrganizationController {
         return next(new NotFoundError('Organization not found in context.'));
       }
 
-      const UserModel = getUserModel(this.connection);
-      const pendingUsers = await UserModel.find({ organizationId: orgId, status: 'pending' })
-        .select('name email phone createdAt status')
-        .sort({ createdAt: -1 })
-        .lean();
-
+      const pendingUsers = await this.memberService.getPendingMembers(orgId);
       res.status(200).json(ApiResponseFactory.success(pendingUsers));
     } catch (err) {
       next(err);
@@ -198,27 +174,11 @@ export class OrganizationController {
       if (!userId || !roleId || !branchId) {
         return next(new BadRequestError('userId, roleId, and branchId are required'));
       }
-
-      const UserModel = getUserModel(this.connection);
-      const user = await UserModel.findOne({ _id: userId, organizationId: orgId, status: 'pending' });
-      if (!user) {
-        return next(new NotFoundError('Pending user not found in this organization'));
+      if (!orgId) {
+        return next(new NotFoundError('Organization not found in context.'));
       }
 
-      const RoleModel = getRoleModel(this.connection);
-      const role = await RoleModel.findOne({ _id: roleId, organizationId: orgId });
-      if (!role) {
-        return next(new BadRequestError('Invalid role for this organization'));
-      }
-
-      user.status = 'approved';
-      user.roles = [roleId];
-      if (branchId) {
-        (user as any).branchId = branchId;
-      }
-      
-      await user.save();
-
+      const user = await this.memberService.approveMember(orgId, userId, roleId, branchId);
       res.status(200).json(ApiResponseFactory.success(user));
     } catch (err) {
       next(err);
@@ -234,15 +194,12 @@ export class OrganizationController {
       if (!userId) {
         return next(new BadRequestError('userId is required'));
       }
-
-      const UserModel = getUserModel(this.connection);
-      const result = await UserModel.deleteOne({ _id: userId, organizationId: orgId, status: 'pending' });
-
-      if (result.deletedCount === 0) {
-        return next(new NotFoundError('Pending user not found in this organization'));
+      if (!orgId) {
+        return next(new NotFoundError('Organization not found in context.'));
       }
 
-      res.status(200).json(ApiResponseFactory.success(null, 'Member request rejected successfully'));
+      await this.memberService.rejectMember(orgId, userId);
+      res.status(200).json(ApiResponseFactory.success({ message: 'Member request rejected successfully' }));
     } catch (err) {
       next(err);
     }
@@ -268,8 +225,7 @@ export class OrganizationController {
       }
 
       await this.orgRepo.delete(orgId);
-
-      res.status(200).json(ApiResponseFactory.success(null, 'Organization deleted successfully'));
+      res.status(200).json(ApiResponseFactory.success({ message: 'Organization deleted successfully' }));
     } catch (err) {
       next(err);
     }
@@ -287,13 +243,15 @@ export class OrganizationController {
         pagination: { page, limit },
       });
 
-      const dtos = result.data.map((o) => this.mapper.toDto(o));
+      const dtos = result.items.map((o) => this.mapper.toDto(o));
 
-      res.status(200).json(ApiResponseFactory.success({
-        data: dtos,
+      res.status(200).json(ApiResponseFactory.success(dtos, {
         total: result.total,
         page: result.page,
-        limit: result.limit
+        limit: result.limit,
+        totalPages: result.totalPages,
+        hasNext: result.hasNext,
+        hasPrev: result.hasPrev,
       }));
     } catch (err) {
       next(err);
@@ -303,8 +261,11 @@ export class OrganizationController {
   public deleteOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!id) {
+        return next(new BadRequestError('Organization ID is required'));
+      }
       await this.orgRepo.delete(id);
-      res.status(200).json(ApiResponseFactory.success(null, 'Organization deleted successfully'));
+      res.status(200).json(ApiResponseFactory.success({ message: 'Organization deleted successfully' }));
     } catch (err) {
       next(err);
     }
@@ -319,32 +280,14 @@ export class OrganizationController {
       if (!email || !name || !role) {
         return next(new BadRequestError('email, name, and role are required'));
       }
-
-      const UserModel = getUserModel(this.connection);
-      const existingUser = await UserModel.findOne({ email });
-      if (existingUser) {
-        return next(new BadRequestError('User with this email already exists'));
+      if (!orgId) {
+        return next(new NotFoundError('Organization not found in context.'));
       }
 
-      const tempPassword = crypto.randomBytes(16).toString('hex');
-      const hashedPassword = await this.passwordHasher.hash(tempPassword);
-
-      const userId = crypto.randomUUID();
-      const newUser = new UserModel({
-        _id: userId,
-        email,
-        name,
-        phone,
-        passwordHash: hashedPassword,
-        roles: [role],
-        organizationId: orgId,
-        isActive: true
-      });
-
-      await newUser.save();
-
-      const userResponse = newUser.toObject();
-      delete (userResponse as Record<string, unknown>).passwordHash;
+      const userResponse = await this.memberService.inviteUser(
+        { orgId, email, name, role, phone },
+        this.passwordHasher
+      );
 
       res.status(201).json(ApiResponseFactory.success(userResponse));
     } catch (err) {
@@ -358,6 +301,9 @@ export class OrganizationController {
       const context = RequestContextHolder.get();
       const orgId = context?.organizationId;
 
+      if (!memberId) {
+        return next(new BadRequestError('Member ID is required'));
+      }
       if (!orgId) {
         return next(new NotFoundError('Organization not found in context.'));
       }
@@ -367,30 +313,14 @@ export class OrganizationController {
         return next(new NotFoundError('Organization not found'));
       }
 
-      const UserModel = getUserModel(this.connection);
-      const user = await UserModel.findOne({ _id: memberId, organizationId: orgId });
-      if (!user) {
-        return next(new NotFoundError('Member not found in this organization'));
-      }
-
-      if (user.roles?.includes('owner' as any)) {
-        return next(new ForbiddenError('Cannot remove the owner of the organization'));
-      }
-
-      user.status = 'inactive';
-      user.isActive = false;
-      await user.save();
-
-      const EmployeeModel = getEmployeeModel(this.connection);
-      await EmployeeModel.updateOne({ userId: memberId, organizationId: orgId }, { status: 'inactive' });
-
-      res.status(200).json(ApiResponseFactory.success(null, 'Member removed successfully'));
+      await this.memberService.removeMember(orgId, memberId);
+      res.status(200).json(ApiResponseFactory.success({ message: 'Member removed successfully' }));
     } catch (err) {
       next(err);
     }
   };
 
-  public getActivityLog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getActivityLog = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       res.status(200).json({ status: 'success', results: 0, data: { logs: [] } });
     } catch (err) { 

@@ -18,6 +18,9 @@ export interface UserResponseDto {
   roles: string[];
   permissions: string[];
   isActive: boolean;
+  status?: string;
+  isOwner?: boolean;
+  isSuperAdmin?: boolean;
   phone?: string;
   emailVerified: boolean;
   createdAt: string;

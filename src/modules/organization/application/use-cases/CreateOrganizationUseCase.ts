@@ -21,26 +21,8 @@ import { getDepartmentModel } from '../../../hrms/infrastructure/persistence/dep
 import { getDesignationModel } from '../../../hrms/infrastructure/persistence/designation.model';
 import { getEmployeeModel } from '../../../hrms/infrastructure/persistence/employee.model';
 import { getLeaveBalanceModel } from '../../../hrms/infrastructure/persistence/leave-balance.model';
-
-export interface CreateOrganizationDto {
-  organizationName: string;
-  slug?: string;
-  uniqueShopId?: string;
-  primaryEmail?: string;
-  primaryPhone?: string;
-  gstNumber?: string;
-  mainBranchName?: string;
-  mainBranchAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-  };
-  ownerName: string;
-  ownerEmail: string;
-  ownerPassword: string;
-}
+import { getStorefrontPageModel } from '../../../storefront/infrastructure/persistence/storefrontPage.model';
+import { CreateOrganizationDto } from '../dto/CreateOrganizationDto';
 
 export interface CreateOrganizationResult {
   organization: OrganizationResponseDto;
@@ -53,6 +35,7 @@ export interface CreateOrganizationResult {
     shift: string;
     department: string;
     designation: string;
+    storefront?: string;
   };
 }
 
@@ -146,9 +129,23 @@ export class CreateOrganizationUseCase
       const LeaveBalanceModel = getLeaveBalanceModel(this.connection);
 
       // 7. Start Mongoose session + transaction
-      const session = await this.connection.startSession();
-      session.startTransaction();
+      // 7. Start Mongoose session + transaction (with resilient fallback for standalone MongoDB)
+      let session: any = null;
+      let inTransaction = false;
+      try {
+        if (typeof this.connection?.startSession === 'function') {
+          session = await this.connection.startSession();
+          if (typeof session?.startTransaction === 'function') {
+            session.startTransaction();
+            inTransaction = true;
+          }
+        }
+      } catch {
+        session = null;
+        inTransaction = false;
+      }
 
+      const saveOptions = session && inTransaction ? { session } : undefined;
       let savedOrganization;
 
       try {
@@ -171,7 +168,7 @@ export class CreateOrganizationUseCase
           superAdminRole: 'superadmin',
           isActive: true
         });
-        await orgDoc.save({ session });
+        await orgDoc.save(saveOptions);
         savedOrganization = orgDoc;
 
         // 2. Branch
@@ -183,7 +180,7 @@ export class CreateOrganizationUseCase
           isMainBranch: true,
           address: input.mainBranchAddress || {}
         });
-        await branchDoc.save({ session });
+        await branchDoc.save(saveOptions);
 
         // 3. Role
         const roleDoc = new RoleModel({
@@ -194,7 +191,7 @@ export class CreateOrganizationUseCase
           isSuperAdmin: true,
           isDefault: true
         });
-        await roleDoc.save({ session });
+        await roleDoc.save(saveOptions);
 
         // 4. Shift
         const shiftDoc = new ShiftModel({
@@ -210,7 +207,7 @@ export class CreateOrganizationUseCase
           unpaidBreakMins: 60,
           weeklyOffs: [0]
         });
-        await shiftDoc.save({ session });
+        await shiftDoc.save(saveOptions);
 
         // 5. Department
         const deptDoc = new DepartmentModel({
@@ -220,7 +217,7 @@ export class CreateOrganizationUseCase
           code: 'ADMIN',
           managerId: ownerId
         });
-        await deptDoc.save({ session });
+        await deptDoc.save(saveOptions);
 
         // 6. Designation
         const desigDoc = new DesignationModel({
@@ -230,7 +227,7 @@ export class CreateOrganizationUseCase
           code: 'DIR',
           level: 10
         });
-        await desigDoc.save({ session });
+        await desigDoc.save(saveOptions);
 
         // 7. User/Owner
         const userDoc = new UserModel({
@@ -248,7 +245,7 @@ export class CreateOrganizationUseCase
           phone: input.primaryPhone,
           emailVerified: false
         });
-        await userDoc.save({ session });
+        await userDoc.save(saveOptions);
 
         // 8. Employee
         const empDoc = new EmployeeModel({
@@ -268,7 +265,7 @@ export class CreateOrganizationUseCase
           shiftId: shiftId,
           allowWebPunch: true
         });
-        await empDoc.save({ session });
+        await empDoc.save(saveOptions);
 
         // 9. LeaveBalance
         const leaveBalanceDoc = new LeaveBalanceModel({
@@ -280,28 +277,154 @@ export class CreateOrganizationUseCase
           sickLeave: { total: 10, used: 0 },
           earnedLeave: { total: 15, used: 0 }
         });
-        await leaveBalanceDoc.save({ session });
+        await leaveBalanceDoc.save(saveOptions);
+
+        // 10. Seed Default Storefront pages for this new organization (Legacy Parity)
+        const StorefrontPageModel = getStorefrontPageModel(this.connection);
+        const commonStorefront = {
+          organizationId: orgId,
+          status: 'published',
+          isPublished: true,
+          publishedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        const homePage = new StorefrontPageModel({
+          _id: crypto.randomUUID(),
+          ...commonStorefront,
+          name: 'Home Page',
+          slug: 'home',
+          pageType: 'home',
+          isHomepage: true,
+          sections: [
+            {
+              id: crypto.randomBytes(4).toString('hex'),
+              type: 'hero_banner',
+              order: 0,
+              data: {
+                title: `Welcome to ${input.organizationName}`,
+                subtitle: 'Experience the next generation of enterprise commerce. Built for scale, designed for conversion.',
+                height: 'screen',
+                textAlign: 'center',
+              },
+            },
+            {
+              id: crypto.randomBytes(4).toString('hex'),
+              type: 'feature_grid',
+              order: 1,
+              data: {
+                title: 'Why Choose Us',
+                columns: 3,
+                items: [
+                  { title: 'Free Global Shipping', description: 'On all orders over $150.' },
+                  { title: 'Secure Checkout', description: '256-bit SSL encrypted payments.' },
+                  { title: '30-Day Returns', description: 'No questions asked return policy.' },
+                ],
+              },
+            },
+          ],
+        });
+        await homePage.save(saveOptions);
+
+        const aboutPage = new StorefrontPageModel({
+          _id: crypto.randomUUID(),
+          ...commonStorefront,
+          name: 'About Us',
+          slug: 'about',
+          pageType: 'custom',
+          isHomepage: false,
+          sections: [
+            {
+              id: crypto.randomBytes(4).toString('hex'),
+              type: 'hero_banner',
+              order: 0,
+              data: {
+                title: 'About Us',
+                subtitle: 'Our journey, mission, and values.',
+                textAlign: 'center',
+              },
+            },
+          ],
+        });
+        await aboutPage.save(saveOptions);
+
+        const contactPage = new StorefrontPageModel({
+          _id: crypto.randomUUID(),
+          ...commonStorefront,
+          name: 'Contact Us',
+          slug: 'contact',
+          pageType: 'custom',
+          isHomepage: false,
+          sections: [
+            {
+              id: crypto.randomBytes(4).toString('hex'),
+              type: 'contact_form',
+              order: 0,
+              data: {
+                title: 'Contact Us',
+                subtitle: 'We would love to hear from you.',
+              },
+            },
+          ],
+        });
+        await contactPage.save(saveOptions);
+
+        const productsPage = new StorefrontPageModel({
+          _id: crypto.randomUUID(),
+          ...commonStorefront,
+          name: 'Products',
+          slug: 'products',
+          pageType: 'products',
+          isHomepage: false,
+          sections: [
+            {
+              id: crypto.randomBytes(4).toString('hex'),
+              type: 'product_listing',
+              order: 0,
+              data: {
+                showSidebar: true,
+                itemsPerPage: 12,
+              },
+            },
+          ],
+        });
+        await productsPage.save(saveOptions);
 
         // 11. Commit transaction
-        await session.commitTransaction();
+        if (session && inTransaction) {
+          try {
+            await session.commitTransaction();
+          } finally {
+            inTransaction = false;
+          }
+        }
       } catch (err: any) {
-        await session.abortTransaction();
+        if (session && inTransaction && typeof session.inTransaction === 'function' && session.inTransaction()) {
+          try {
+            await session.abortTransaction();
+          } catch {
+            // Ignore abort error to avoid masking the primary error
+          }
+        }
         if (err.code === 11000) {
            return Result.fail(new ConflictError(`Duplicate key error: ${JSON.stringify(err.keyValue)}`));
         }
         throw err;
       } finally {
-        session.endSession();
+        if (session && typeof session.endSession === 'function') {
+          session.endSession();
+        }
       }
 
       // 12. Generate tokens via tokenService
-      const accessToken = this.tokenService.signAccessToken({ 
+      const accessToken = this.tokenService.generateToken({ 
         userId: ownerId, 
         email: input.ownerEmail, 
         organizationId: orgId, 
         roles: ['owner', 'superadmin'] 
       });
-      const refreshToken = this.tokenService.signRefreshToken({ 
+      const refreshToken = this.tokenService.generateRefreshToken({ 
         userId: ownerId, 
         email: input.ownerEmail, 
         organizationId: orgId, 
@@ -330,6 +453,7 @@ export class CreateOrganizationUseCase
           shift: shiftId,
           department: deptId,
           designation: desigId,
+          storefront: '4 default pages seeded',
         }
       });
     } catch (err) {

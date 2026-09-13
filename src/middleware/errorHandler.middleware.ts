@@ -42,6 +42,18 @@ export function createErrorHandlerMiddleware(logger?: ILogger) {
       return;
     }
 
+    // 3. Body-Parser / JSON SyntaxError (e.g. unescaped newlines or control characters in JSON)
+    if (err instanceof SyntaxError && 'status' in err && (err as { status?: number }).status === 400) {
+      logger?.warn(`[error:bad_request] Malformed JSON request body on ${req.originalUrl}: ${err.message}`);
+      res.status(400).json(
+        ApiResponseFactory.error(
+          'MALFORMED_JSON',
+          'Malformed JSON body: Please ensure there are no unescaped line breaks or control characters inside string values.'
+        )
+      );
+      return;
+    }
+
     // 3. MongoDB Duplicate Key (E11000)
     const maybeMongoError = err as { code?: number; keyValue?: Record<string, unknown> };
     if (maybeMongoError?.code === 11000 && maybeMongoError.keyValue) {

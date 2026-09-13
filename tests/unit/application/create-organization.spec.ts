@@ -3,56 +3,108 @@ import { InMemoryOrganizationRepository } from '../../../src/modules/organizatio
 import { OrganizationMapper } from '../../../src/modules/organization/application/mappers/OrganizationMapper';
 import { InMemoryEventBus } from '../../../src/infrastructure/messaging/InMemoryEventBus';
 import { ConflictError } from '../../../src/shared/errors';
+import { Organization } from '../../../src/modules/organization/domain/entities/Organization';
 
-describe('CreateOrganizationUseCase (Application Layer Test with InMemory Stub)', () => {
+describe('CreateOrganizationUseCase (Application Layer Test)', () => {
   let repo: InMemoryOrganizationRepository;
   let mapper: OrganizationMapper;
   let eventBus: InMemoryEventBus;
   let useCase: CreateOrganizationUseCase;
+  let mockConnection: any;
+  let mockPasswordHasher: any;
+  let mockTokenService: any;
 
   beforeEach(() => {
     repo = new InMemoryOrganizationRepository();
     mapper = new OrganizationMapper();
     eventBus = new InMemoryEventBus();
-    useCase = new CreateOrganizationUseCase(repo, mapper, eventBus);
+
+    const mockSession = {
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      abortTransaction: jest.fn(),
+      endSession: jest.fn(),
+    };
+
+    const mockModelInstance = {
+      save: jest.fn().mockResolvedValue({}),
+      toObject: jest.fn().mockReturnValue({
+        _id: 'org-123',
+        name: 'Apex Innovations',
+        slug: 'apex-innovations',
+        uniqueShopId: 'ORG-APEX1',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    };
+
+    const mockModel = jest.fn().mockImplementation(() => mockModelInstance);
+
+    mockConnection = {
+      startSession: jest.fn().mockResolvedValue(mockSession),
+      models: {},
+      model: jest.fn().mockReturnValue(mockModel),
+    };
+
+    mockPasswordHasher = {
+      hash: jest.fn().mockResolvedValue('$2a$10$hashedpassword'),
+      compare: jest.fn().mockResolvedValue(true),
+    };
+
+    mockTokenService = {
+      generateToken: jest.fn().mockReturnValue('mock-access-token'),
+      generateRefreshToken: jest.fn().mockReturnValue('mock-refresh-token'),
+      verifyToken: jest.fn(),
+      verifyRefreshToken: jest.fn(),
+    };
+
+    useCase = new CreateOrganizationUseCase(
+      mockConnection,
+      repo,
+      mapper,
+      mockPasswordHasher,
+      mockTokenService,
+      eventBus
+    );
   });
 
-  it('should successfully create and persist a new organization, publishing domain event', async () => {
-    const publishedEvents: string[] = [];
-    eventBus.subscribe('organization.created', (payload) => {
-      publishedEvents.push((payload as { slug: string }).slug);
-    });
-
+  it('should successfully create and persist a new organization with 9-entity setup', async () => {
     const result = await useCase.execute({
-      name: 'Apex Innovations',
+      organizationName: 'Apex Innovations',
       slug: 'apex-innovations',
+      ownerName: 'Admin Owner',
+      ownerEmail: 'owner@apex.test',
+      ownerPassword: 'Password123!',
     });
 
     expect(result.isSuccess).toBe(true);
-    const dto = result.getValue();
-    expect(dto.id).toBeDefined();
-    expect(dto.name).toBe('Apex Innovations');
-    expect(dto.slug).toBe('apex-innovations');
-    expect(dto.isActive).toBe(true);
-
-    // Verify entity was saved in repository
-    const found = await repo.findById(dto.id);
-    expect(found).not.toBeNull();
-    expect(found?.name).toBe('Apex Innovations');
-
-    // Verify event was dispatched
-    expect(publishedEvents).toContain('apex-innovations');
+    const data = result.getValue();
+    expect(data.organization).toBeDefined();
+    expect(data.organization.name).toBe('Apex Innovations');
+    expect(data.organization.slug).toBe('apex-innovations');
+    expect(data.owner).toBeDefined();
+    expect(data.owner.email).toBe('owner@apex.test');
+    expect(data.accessToken).toBe('mock-access-token');
+    expect(data.refreshToken).toBe('mock-refresh-token');
+    expect(data.setup.branch).toBeDefined();
+    expect(data.setup.role).toBeDefined();
+    expect(data.setup.shift).toBeDefined();
+    expect(data.setup.department).toBeDefined();
+    expect(data.setup.designation).toBeDefined();
   });
 
   it('should reject creating an organization with a duplicate slug', async () => {
-    await useCase.execute({
-      name: 'First Org',
-      slug: 'unique-slug',
-    });
+    // Pre-populate repo with an existing org with slug 'unique-slug'
+    const existingOrg = Organization.create('First Org', 'unique-slug');
+    await repo.save(existingOrg);
 
     const duplicateResult = await useCase.execute({
-      name: 'Second Org',
+      organizationName: 'Second Org',
       slug: 'unique-slug',
+      ownerName: 'Second Owner',
+      ownerEmail: 'second@apex.test',
+      ownerPassword: 'Password123!',
     });
 
     expect(duplicateResult.isFailure).toBe(true);

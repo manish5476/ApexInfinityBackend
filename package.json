@@ -19,6 +19,15 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testTimeout": 30000,
+    "testMatch": [
+      "<rootDir>/tests/**/*.spec.ts",
+      "<rootDir>/tests/**/*.test.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/frontend/"
+    ],
     "moduleNameMapper": {
       "^@/config/(.*)$": "<rootDir>/src/config/$1",
       "^@/config$": "<rootDir>/src/config",
