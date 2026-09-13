@@ -1,0 +1,10 @@
+:root {
+    --content-max-width: 100rem;
+    --page-gutter: clamp(1rem, 2vw, 2rem);
+    --section-gap: clamp(1.5rem, 3vw, 4rem);
+    --grid-gap: clamp(1rem, 2vw, 2rem);
+    --header-height: 4rem;
+    --sidebar-width: 16rem;
+    --control-height: 2.75rem;
+    --border-width: 1px;
+}

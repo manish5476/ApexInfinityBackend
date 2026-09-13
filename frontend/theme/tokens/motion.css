@@ -1,0 +1,15 @@
+:root {
+    --motion-fast: 120ms;
+    --motion-normal: 200ms;
+    --motion-slow: 320ms;
+    --ease-standard: cubic-bezier(.2, .8, .2, 1);
+    --press-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-fast: 0ms;
+        --motion-normal: 0ms;
+        --motion-slow: 0ms;
+    }
+}
