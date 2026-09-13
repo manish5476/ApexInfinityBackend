@@ -7,6 +7,8 @@ export const registerSchema = z
     password: z.string().min(8, 'Password must be at least 8 characters long'),
     passwordConfirm: z.string().optional(),
     organizationId: z.string().optional(),
+    organizationSlug: z.string().optional(),
+    organizationName: z.string().optional(),
     uniqueShopId: z.string().optional(),
     phone: z.string().optional(),
     roles: z.array(z.string()).optional(),
@@ -19,6 +21,9 @@ export const registerSchema = z
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address format'),
   password: z.string().min(1, 'Password is required'),
+  organizationSlug: z.string().optional(),
+  orgSlug: z.string().optional(),
+  organizationName: z.string().optional(),
   uniqueShopId: z.string().optional(),
 });
 

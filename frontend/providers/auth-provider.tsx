@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ApiClient } from '@/lib/api/client';
 import { authApi } from '@/features/auth/auth-api';
 import type { CurrentUser, LoginInput } from '@/types/auth/auth';
@@ -10,29 +10,43 @@ interface AuthContextValue { status: AuthStatus; user: CurrentUser | null; login
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const token = useRef<string>();
-  const client = useMemo(() => new ApiClient(() => token.current), []);
+  const [client] = useState(() => new ApiClient());
   const [status, setStatus] = useState<AuthStatus>('booting');
   const [user, setUser] = useState<CurrentUser | null>(null);
 
   const restore = useCallback(async () => {
     try {
       const refreshed = await authApi.refresh(client);
-      token.current = refreshed.token;
+      client.setAccessToken(refreshed.token);
       setUser(await authApi.me(client));
       setStatus('authenticated');
-    } catch { token.current = undefined; setUser(null); setStatus('anonymous'); }
+    } catch { client.setAccessToken(); setUser(null); setStatus('anonymous'); }
   }, [client]);
 
-  useEffect(() => { void restore(); }, [restore]);
+  useEffect(() => {
+    client.setUnauthorizedHandler(async () => {
+      try {
+        const refreshed = await authApi.refresh(client);
+        client.setAccessToken(refreshed.token);
+        setUser(refreshed.user);
+        setStatus('authenticated');
+        return true;
+      } catch {
+        client.setAccessToken(); setUser(null); setStatus('anonymous');
+        return false;
+      }
+    });
+    queueMicrotask(() => { void restore(); });
+    return () => client.setUnauthorizedHandler();
+  }, [client, restore]);
   const login = useCallback(async (input: LoginInput) => {
     const result = await authApi.login(client, input);
-    token.current = result.token;
+    client.setAccessToken(result.token);
     setUser(result.user);
     setStatus('authenticated');
   }, [client]);
   const logout = useCallback(async () => {
-    try { await authApi.logout(client); } finally { token.current = undefined; setUser(null); setStatus('anonymous'); }
+    try { await authApi.logout(client); } finally { client.setAccessToken(); setUser(null); setStatus('anonymous'); }
   }, [client]);
   const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

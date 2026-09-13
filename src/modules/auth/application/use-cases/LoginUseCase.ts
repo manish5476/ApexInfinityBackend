@@ -36,10 +36,20 @@ export class LoginUseCase implements IUseCase<LoginDto, AuthResultDto> {
   ): Promise<Result<AuthResultDto>> {
     try {
       let organizationId: string | undefined;
-      if (input.uniqueShopId && this.organizationRepo) {
-        const org = await this.organizationRepo.findBySlug(input.uniqueShopId.trim().toLowerCase());
+      const tenantIdentifier = (
+        input.organizationSlug ||
+        input.orgSlug ||
+        input.uniqueShopId ||
+        input.organizationName
+      )?.trim().toLowerCase();
+
+      if (tenantIdentifier && this.organizationRepo) {
+        let org = await this.organizationRepo.findBySlug(tenantIdentifier);
         if (!org) {
-          return Result.fail(new NotFoundError('Organization', input.uniqueShopId));
+          org = await this.organizationRepo.findByShopId(tenantIdentifier);
+        }
+        if (!org) {
+          return Result.fail(new NotFoundError('Organization', tenantIdentifier));
         }
         organizationId = org.id;
       }

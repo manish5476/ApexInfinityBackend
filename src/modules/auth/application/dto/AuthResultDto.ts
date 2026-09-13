@@ -2,6 +2,9 @@ export interface LoginDto {
   email: string;
   password: string;
   uniqueShopId?: string;
+  organizationSlug?: string;
+  orgSlug?: string;
+  organizationName?: string;
   device?: DeviceMeta;
 }
 

@@ -5,8 +5,8 @@ export const authAndOrgPaths: OpenApiPaths = {
   '/auth/login': {
     post: {
       tags: ['Authentication & Identity'],
-      summary: 'Authenticate with email & password',
-      description: 'Generates access and refresh tokens along with user session details.',
+      summary: 'Authenticate with email, password, and organization slug (Shop ID)',
+      description: 'Generates access and refresh tokens. In Apex Infinity, the Organization is a mandatory separate entity that defines the tenant boundary. Users must supply their `organizationSlug` (or `uniqueShopId`) alongside `email` and `password` to authenticate into their specific organization workspace.',
       security: [],
       requestBody: jsonBody('LoginRequest'),
       responses: {
@@ -14,24 +14,28 @@ export const authAndOrgPaths: OpenApiPaths = {
           description: 'Login successful',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } },
         },
-        401: { description: 'Invalid credentials or account suspended' },
+        400: { description: 'Missing required credentials or organization identifier' },
+        401: { description: 'Invalid credentials, organization mismatch, or account suspended' },
+        404: { description: 'Specified organization slug or shop ID does not exist' },
       },
     },
   },
   '/auth/register': {
     post: {
       tags: ['Authentication & Identity'],
-      summary: 'Register new tenant administrator',
+      summary: 'Register new tenant administrator or user',
       security: [],
       requestBody: jsonBody({
         type: 'object',
         required: ['email', 'password', 'name'],
         properties: {
-          email: { type: 'string', format: 'email' },
-          password: { type: 'string', minLength: 8 },
-          name: { type: 'string' },
-          phone: { type: 'string' },
-          organizationName: { type: 'string' },
+          email: { type: 'string', format: 'email', example: 'owner@apex.local' },
+          password: { type: 'string', minLength: 8, example: 'SuperSecurePassword123!' },
+          name: { type: 'string', example: 'Apex Store Admin' },
+          phone: { type: 'string', example: '+919876543210' },
+          organizationName: { type: 'string', example: 'Apex Retail Solutions' },
+          organizationSlug: { type: 'string', example: 'apex-retail' },
+          uniqueShopId: { type: 'string', example: 'shop_001' },
         },
       }),
       responses: createdResponse('User registered successfully'),

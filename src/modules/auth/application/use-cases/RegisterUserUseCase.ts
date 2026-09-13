@@ -49,10 +49,19 @@ export class RegisterUserUseCase implements IUseCase<RegisterUserDto, AuthResult
       }
 
       let organizationId = input.organizationId;
-      if (!organizationId && input.uniqueShopId && this.organizationRepo) {
-        const org = await this.organizationRepo.findBySlug(input.uniqueShopId.trim().toLowerCase());
+      const tenantIdentifier = (
+        input.organizationSlug ||
+        input.uniqueShopId ||
+        input.organizationName
+      )?.trim().toLowerCase();
+
+      if (!organizationId && tenantIdentifier && this.organizationRepo) {
+        let org = await this.organizationRepo.findBySlug(tenantIdentifier);
         if (!org) {
-          return Result.fail(new NotFoundError('Organization', input.uniqueShopId));
+          org = await this.organizationRepo.findByShopId(tenantIdentifier);
+        }
+        if (!org) {
+          return Result.fail(new NotFoundError('Organization', tenantIdentifier));
         }
         organizationId = org.id;
       }

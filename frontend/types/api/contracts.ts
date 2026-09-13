@@ -1,4 +1,4 @@
-export interface ApiSuccess<T> { status: 'success'; data: T; meta?: Record<string, unknown>; requestId?: string; }
-export interface ApiFailure { status?: 'error' | 'fail'; message?: string; errors?: Record<string, string[] | string>; requestId?: string; }
-
+export interface ApiMeta { page?: number; limit?: number; total?: number; totalPages?: number; requestId?: string; timestamp?: string; [key: string]: unknown; }
+export interface ApiSuccess<T> { success: true; data: T; meta?: ApiMeta; }
+export interface ApiFailure { success: false; error: { code: string; message: string; details?: unknown; }; }
 export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure;
