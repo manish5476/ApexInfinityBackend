@@ -55,14 +55,17 @@ export class LoginUseCase implements IUseCase<LoginDto, AuthResultDto> {
         organizationId = org.id;
       }
 
-      const normalizedEmail = input.email.trim().toLowerCase();
-      const user = await this.userRepo.findByEmail(normalizedEmail);
+      const identifier = input.email.trim();
+      let user = await this.userRepo.findByEmailOrPhone(identifier, organizationId);
+      if (!user) {
+        user = await this.userRepo.findByEmailOrPhone(identifier);
+      }
 
       if (!user) {
         return Result.fail(new UnauthorizedError('Invalid email or password.'));
       }
 
-      if (organizationId && user.organizationId && user.organizationId !== organizationId) {
+      if (organizationId && user.organizationId && String(user.organizationId) !== String(organizationId)) {
         return Result.fail(new UnauthorizedError('Invalid email or password.'));
       }
 
@@ -95,12 +98,38 @@ export class LoginUseCase implements IUseCase<LoginDto, AuthResultDto> {
 
       const issued = await this.issueSession.issue(user, input.device);
 
+      let organizationData: { id: string; _id?: string; name: string; uniqueShopId: string } | undefined;
+      if (this.organizationRepo) {
+        const targetOrgId = organizationId || user.organizationId;
+        if (targetOrgId) {
+          const org = await this.organizationRepo.findById(targetOrgId);
+          if (org) {
+            organizationData = {
+              id: org.id,
+              _id: org.id,
+              name: org.name,
+              uniqueShopId: org.uniqueShopId || '',
+            };
+          }
+        }
+      }
+
       return Result.ok({
         token: issued.accessToken,
         refreshToken: issued.refreshToken,
         expiresIn: this.issueSession.expiresIn,
         sessionId: issued.session.id,
         user: this.mapper.toDto(user),
+        session: {
+          id: issued.session.id,
+          _id: issued.session.id,
+          browser: input.device?.browser,
+          os: input.device?.os,
+          deviceType: input.device?.deviceType,
+          ipAddress: input.device?.ipAddress,
+          lastActivityAt: issued.session.lastActivityAt,
+        },
+        organization: organizationData,
       });
     } catch (err) {
       return Result.fail(err as Error);

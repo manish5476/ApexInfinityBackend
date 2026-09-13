@@ -12,9 +12,12 @@ export interface LoginDto {
 
 export interface UserResponseDto {
   id: string;
+  _id?: string;
   email: string;
   name: string;
   organizationId?: string;
+  branchId?: string;
+  role?: string;
   roles: string[];
   permissions: string[];
   isActive: boolean;
@@ -40,4 +43,19 @@ export interface AuthResultDto {
   expiresIn?: string;
   sessionId?: string;
   user: UserResponseDto;
+  session?: {
+    id?: string;
+    _id?: string;
+    browser?: string;
+    os?: string;
+    deviceType?: string;
+    ipAddress?: string;
+    lastActivityAt?: Date;
+  };
+  organization?: {
+    id: string;
+    _id?: string;
+    name: string;
+    uniqueShopId: string;
+  };
 }

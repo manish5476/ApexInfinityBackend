@@ -9,10 +9,30 @@ export class InMemoryUserRepository implements IUserRepository {
     return this.items.get(id) || null;
   }
 
-  public async findByEmail(email: string): Promise<User | null> {
+  public async findByEmail(email: string, organizationId?: string): Promise<User | null> {
     const target = email.toLowerCase().trim();
     for (const user of this.items.values()) {
+      if (organizationId && user.organizationId && user.organizationId !== organizationId) {
+        continue;
+      }
       if (user.email.value === target) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  public async findByEmailOrPhone(identifier: string, organizationId?: string): Promise<User | null> {
+    const target = identifier.toLowerCase().trim();
+    const phoneCleaned = target.replace(/[\s\-\(\)\+]/g, '');
+    for (const user of this.items.values()) {
+      if (organizationId && user.organizationId && user.organizationId !== organizationId) {
+        continue;
+      }
+      if (user.email.value === target) {
+        return user;
+      }
+      if (user.phone && (user.phone === target || user.phone === phoneCleaned)) {
         return user;
       }
     }

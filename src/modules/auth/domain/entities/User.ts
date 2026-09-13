@@ -9,6 +9,7 @@ export interface UserProps {
   passwordHash: string;
   name: string;
   organizationId?: string;
+  branchId?: string;
   roles: string[];
   permissions: string[];
   isActive: boolean;
@@ -30,6 +31,7 @@ export class User extends AggregateRoot<string> {
   private _passwordHash: string;
   private _name: string;
   private _organizationId?: string;
+  private _branchId?: string;
   private _roles: string[];
   private _permissions: string[];
   private _isActive: boolean;
@@ -51,6 +53,7 @@ export class User extends AggregateRoot<string> {
     this._passwordHash = props.passwordHash;
     this._name = props.name;
     this._organizationId = props.organizationId;
+    this._branchId = props.branchId;
     this._roles = props.roles;
     this._permissions = props.permissions;
     this._isActive = props.isActive;
@@ -72,6 +75,7 @@ export class User extends AggregateRoot<string> {
     passwordHash: string;
     name: string;
     organizationId?: string;
+    branchId?: string;
     roles?: string[];
     permissions?: string[];
     phone?: string;
@@ -95,6 +99,7 @@ export class User extends AggregateRoot<string> {
       passwordHash: params.passwordHash,
       name: params.name.trim(),
       organizationId: params.organizationId,
+      branchId: params.branchId,
       roles: params.roles || ['user'],
       permissions: params.permissions || [],
       isActive: true,
@@ -134,6 +139,10 @@ export class User extends AggregateRoot<string> {
 
   public get organizationId(): string | undefined {
     return this._organizationId;
+  }
+
+  public get branchId(): string | undefined {
+    return this._branchId;
   }
 
   public get roles(): ReadonlyArray<string> {

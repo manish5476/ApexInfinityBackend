@@ -107,7 +107,17 @@ export class AuthController {
         setRefreshTokenCookie(res, value.refreshToken, this.isProduction);
       }
 
-      res.status(200).json(ApiResponseFactory.success(value));
+      res.status(200).json({
+        status: 'success',
+        token: value.token,
+        ...ApiResponseFactory.success(value),
+        data: {
+          ...value,
+          user: value.user,
+          organization: value.organization,
+          session: value.session,
+        },
+      });
     } catch (err) {
       next(err);
     }
@@ -122,7 +132,12 @@ export class AuthController {
         return next(result.getError());
       }
 
-      res.status(200).json(ApiResponseFactory.success(result.getValue()));
+      const value = result.getValue();
+      res.status(200).json({
+        status: 'success',
+        token: value.token,
+        ...ApiResponseFactory.success(value),
+      });
     } catch (err) {
       next(err);
     }
@@ -161,7 +176,11 @@ export class AuthController {
       if (value.refreshToken) {
         setRefreshTokenCookie(res, value.refreshToken, this.isProduction);
       }
-      res.status(200).json(ApiResponseFactory.success(value));
+      res.status(200).json({
+        status: 'success',
+        token: value.token,
+        ...ApiResponseFactory.success(value),
+      });
     } catch (err) {
       next(err);
     }
@@ -175,7 +194,16 @@ export class AuthController {
       if (result.isFailure) {
         return next(result.getError());
       }
-      res.status(200).json(ApiResponseFactory.success(result.getValue()));
+      const val = result.getValue();
+      res.status(200).json({
+        status: 'success',
+        ...ApiResponseFactory.success(val),
+        data: {
+          ...val,
+          user: val.user,
+          session: val.session,
+        },
+      });
     } catch (err) {
       next(err);
     }

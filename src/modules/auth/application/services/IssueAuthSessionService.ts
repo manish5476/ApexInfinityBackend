@@ -33,12 +33,20 @@ export class IssueAuthSessionService {
   public async issue(user: User, device?: DeviceMeta): Promise<IssuedAuthTokens> {
     const accessToken = this.tokenService.generateToken({
       userId: user.id,
+      id: user.id,
+      sub: user.id,
+      name: user.name,
+      email: user.email.value,
+      isOwner: user.isOwner,
+      isSuperAdmin: user.isSuperAdmin,
       organizationId: user.organizationId,
+      branchId: user.branchId,
       roles: [...user.roles],
       permissions: [...user.permissions],
     });
     const refreshToken = this.tokenService.generateRefreshToken({
       userId: user.id,
+      id: user.id,
       organizationId: user.organizationId,
     });
 

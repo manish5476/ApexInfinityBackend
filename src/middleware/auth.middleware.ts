@@ -5,9 +5,12 @@ import { UnauthorizedError } from '../shared/errors';
 
 export interface AuthenticatedUser {
   id: string;
+  _id?: string;
   organizationId?: string;
   roles: string[];
   permissions: string[];
+  isOwner?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 export function createAuthMiddleware(tokenService: ITokenService, isOptional = false) {
@@ -30,13 +33,36 @@ export function createAuthMiddleware(tokenService: ITokenService, isOptional = f
     try {
       const decoded = tokenService.verifyToken(token);
 
+      const isOwner = Boolean(decoded.isOwner || (decoded.roles && decoded.roles.includes('owner')));
+      const isSuperAdmin = Boolean(decoded.isSuperAdmin || (decoded.roles && decoded.roles.includes('superadmin')));
+
+      const rolesSet = new Set<string>(decoded.roles || []);
+      if (isOwner) {
+        rolesSet.add('owner');
+        rolesSet.add('superadmin');
+      }
+      if (isSuperAdmin) {
+        rolesSet.add('superadmin');
+      }
+      if (rolesSet.size === 0) {
+        rolesSet.add('user');
+      }
+      const roles = Array.from(rolesSet);
+
+      const permissions = (isOwner || isSuperAdmin || (decoded.permissions && decoded.permissions.includes('*')))
+        ? ['*']
+        : (decoded.permissions || []);
+
       // organizationId MUST come from the JWT only — never from a client-supplied header.
       // Allowing x-organization-id header override would be a complete multi-tenant bypass (IDOR).
       const user: AuthenticatedUser = {
         id: decoded.userId,
+        _id: decoded.userId,
         organizationId: decoded.organizationId,
-        roles: decoded.roles || [],
-        permissions: decoded.permissions || [],
+        roles,
+        permissions,
+        isOwner,
+        isSuperAdmin,
       };
 
       // Attach to request

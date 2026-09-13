@@ -20,7 +20,7 @@ export const registerSchema = z
 
 export const loginSchema = z
   .object({
-    email: z.string().email('Invalid email address format'),
+    email: z.string().min(1, 'Email or phone number is required').trim(),
     password: z.string().min(1, 'Password is required'),
     uniqueShopId: z.string().optional(),
     shopId: z.string().optional(),

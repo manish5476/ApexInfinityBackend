@@ -7,13 +7,17 @@ export interface UserDocument extends Document<string>, UserPersistenceData {
 
 export const UserSchema = new Schema<UserDocument>(
   {
-    _id: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true },
+    _id: { type: Schema.Types.Mixed, required: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    password: { type: String },
+    passwordHash: { type: String },
     name: { type: String, required: true, trim: true },
-    organizationId: { type: String, index: true },
+    organizationId: { type: Schema.Types.Mixed, index: true },
+    branchId: { type: Schema.Types.Mixed, index: true },
+    role: { type: Schema.Types.Mixed },
     roles: { type: [String], default: ['user'] },
     permissions: { type: [String], default: [] },
+    permissionOverrides: { type: Schema.Types.Mixed },
     isActive: { type: Boolean, default: true },
     isOwner: { type: Boolean, default: false },
     isSuperAdmin: { type: Boolean, default: false },
@@ -33,9 +37,12 @@ export const UserSchema = new Schema<UserDocument>(
   {
     timestamps: true,
     _id: false,
+    strict: false,
   }
 );
 
+UserSchema.index({ organizationId: 1, email: 1 });
+UserSchema.index({ organizationId: 1, phone: 1 });
 UserSchema.index({ name: 'text', email: 'text' });
 
 export function getUserModel(connection: Connection): Model<UserDocument> {

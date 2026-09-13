@@ -3,7 +3,8 @@ import { IRepository } from '../../../../core/domain/IRepository';
 import { PaginatedResult, PaginationParams } from '../../../../shared/pagination';
 
 export interface IUserRepository extends IRepository<User, string> {
-  findByEmail(email: string): Promise<User | null>;
+  findByEmail(email: string, organizationId?: string): Promise<User | null>;
+  findByEmailOrPhone(identifier: string, organizationId?: string): Promise<User | null>;
   findByPasswordResetTokenHash(tokenHash: string): Promise<User | null>;
   findByEmailVerificationTokenHash(tokenHash: string): Promise<User | null>;
   find(options?: {
