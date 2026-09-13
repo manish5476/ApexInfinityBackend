@@ -20,12 +20,30 @@ export class MongoOrganizationRepository implements IOrganizationRepository {
   }
 
   public async findBySlug(slug: string): Promise<Organization | null> {
-    const doc = await this.model.findOne({ slug: slug.toLowerCase() }).exec();
+    const trimmed = slug.trim();
+    const doc = await this.model.findOne({
+      $or: [
+        { slug: trimmed.toLowerCase() },
+        { uniqueShopId: trimmed.toUpperCase() },
+        { uniqueShopId: trimmed.toLowerCase() },
+        { uniqueShopId: trimmed },
+        { name: new RegExp(`^${trimmed}$`, 'i') },
+      ],
+    }).exec();
     return doc ? this.mapper.toDomain(doc) : null;
   }
 
   public async findByShopId(shopId: string): Promise<Organization | null> {
-    const doc = await this.model.findOne({ uniqueShopId: shopId.toLowerCase() }).exec();
+    const trimmed = shopId.trim();
+    const doc = await this.model.findOne({
+      $or: [
+        { uniqueShopId: trimmed.toUpperCase() },
+        { uniqueShopId: trimmed.toLowerCase() },
+        { uniqueShopId: trimmed },
+        { slug: trimmed.toLowerCase() },
+        { name: new RegExp(`^${trimmed}$`, 'i') },
+      ],
+    }).exec();
     return doc ? this.mapper.toDomain(doc) : null;
   }
 

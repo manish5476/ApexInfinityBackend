@@ -1,0 +1,3 @@
+module.exports=[61501,a=>{"use strict";a.s(["ProtectedLayout",()=>b]);let b=(0,a.i(11857).registerClientReference)(function(){throw Error("Attempted to call ProtectedLayout() from the server but ProtectedLayout is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.")},"[project]/components/layout/protected-layout.tsx","ProtectedLayout")},57090,a=>{"use strict";var b=a.i(61501);a.n(b)},81745,a=>{"use strict";var b=a.i(7997),c=a.i(57090);a.s(["default",0,function({children:a}){return(0,b.jsx)(c.ProtectedLayout,{children:a})}])},10162,function(a){a.n(a.i(81745))}];
+
+//# sourceMappingURL=_0cs7rxu._.js.map

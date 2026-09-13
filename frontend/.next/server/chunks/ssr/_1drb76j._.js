@@ -1,0 +1,3 @@
+module.exports=[78141,a=>{"use strict";var b=a.i(87924),c=a.i(72131),d=a.i(40695);a.s(["default",0,function({error:a,reset:e}){return(0,c.useEffect)(()=>{console.error("Route error",{message:a.message,digest:a.digest})},[a]),(0,b.jsxs)("main",{children:[(0,b.jsx)("h1",{children:"Something went wrong"}),(0,b.jsx)("p",{children:"We could not complete that request. Please try again."}),(0,b.jsx)(d.Button,{onClick:e,children:"Try again"})]})}])},19531,a=>{a.v({button:"button-module__2NABzW__button"})},40695,a=>{"use strict";var b=a.i(87924),c=a.i(19531);a.s(["Button",0,function({className:a,...d}){return(0,b.jsx)("button",{className:`${c.default.button} ${a??""}`,...d})}])}];
+
+//# sourceMappingURL=_1drb76j._.js.map

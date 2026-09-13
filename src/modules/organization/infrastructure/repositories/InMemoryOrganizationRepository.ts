@@ -10,9 +10,13 @@ export class InMemoryOrganizationRepository implements IOrganizationRepository {
   }
 
   public async findBySlug(slug: string): Promise<Organization | null> {
-    const target = slug.toLowerCase();
+    const target = slug.trim().toLowerCase();
     for (const org of this.items.values()) {
-      if (org.slug === target) {
+      if (
+        org.slug?.toLowerCase() === target ||
+        org.uniqueShopId?.toLowerCase() === target ||
+        org.name?.toLowerCase() === target
+      ) {
         return org;
       }
     }
@@ -20,9 +24,13 @@ export class InMemoryOrganizationRepository implements IOrganizationRepository {
   }
 
   public async findByShopId(shopId: string): Promise<Organization | null> {
-    const target = shopId.toLowerCase();
+    const target = shopId.trim().toLowerCase();
     for (const org of this.items.values()) {
-      if (org.uniqueShopId?.toLowerCase() === target) {
+      if (
+        org.uniqueShopId?.toLowerCase() === target ||
+        org.slug?.toLowerCase() === target ||
+        org.name?.toLowerCase() === target
+      ) {
         return org;
       }
     }
