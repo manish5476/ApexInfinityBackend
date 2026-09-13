@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { GetPublicPageBySlugUseCase } from "../../application/use-cases/GetPublicPageBySlugUseCase";
 import { CreateStorefrontOrderUseCase } from "../../application/use-cases/CreateStorefrontOrderUseCase";
-import { ProductModel } from "../../../inventory/infrastructure/persistence";
+import { ProductModel, SalesReturnModel } from "../../../inventory/infrastructure/persistence";
+import { InvoiceModel } from "../../../accounting/infrastructure/persistence";
 import {
   StorefrontCouponModel,
   StorefrontCustomerModel,
@@ -11,6 +12,8 @@ import {
   StorefrontCartItemModel,
   StorefrontCustomerAddressModel,
   StorefrontWishlistModel,
+  StorefrontSessionModel,
+  StorefrontPageModel,
 } from "../../infrastructure/persistence";
 import { OrganizationModel } from "../../../organization/infrastructure/persistence";
 import bcrypt from "bcryptjs";
@@ -21,7 +24,7 @@ const STOREFRONT_JWT_SECRET = process.env.STOREFRONT_JWT_SECRET || process.env.J
 const STOREFRONT_JWT_EXPIRES_IN = "7d";
 const CART_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-/** Canonical filter for publicly visible, active products â€” fixes FUNC-007 */
+/** Canonical filter for publicly visible, active products Ã¢â‚¬â€ fixes FUNC-007 */
 const ACTIVE_PRODUCT_FILTER = { status: "active", storefrontVisible: true, isDeleted: false } as const;
 
 export class StorefrontPublicController {
@@ -30,7 +33,7 @@ export class StorefrontPublicController {
     private readonly createOrder: CreateStorefrontOrderUseCase
   ) {}
 
-  // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   private async resolveOrg(slug: string): Promise<any> {
     return OrganizationModel.findOne({
@@ -75,7 +78,7 @@ export class StorefrontPublicController {
     return cart;
   }
 
-  // â”€â”€â”€ 1. Store Info & Sitemap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 1. Store Info & Sitemap Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public getOrganizationInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -153,7 +156,7 @@ export class StorefrontPublicController {
     } catch (err) { next(err); }
   };
 
-  // â”€â”€â”€ 2. Products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 2. Products Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public searchProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -244,7 +247,7 @@ export class StorefrontPublicController {
     } catch (err) { next(err); }
   };
 
-  // â”€â”€â”€ 3. Cart Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 3. Cart Operations Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public getCart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -325,10 +328,10 @@ export class StorefrontPublicController {
     try {
       const org = await this.resolveOrg(req.params.organizationSlug as string);
       if (!org) { res.status(404).json({ status: "fail", message: "Storefront not found" }); return; }
-      const { itemId } = req.params;
+      const { cartItemId } = req.params;
       const { quantity } = req.body as { quantity?: number };
       if (!quantity || quantity < 1) { res.status(400).json({ status: "fail", message: "quantity must be >= 1" }); return; }
-      const item = await StorefrontCartItemModel.findOne({ _id: itemId, organizationId: org._id }).lean() as any;
+      const item = await StorefrontCartItemModel.findOne({ _id: cartItemId, organizationId: org._id }).lean() as any;
       if (!item) { res.status(404).json({ status: "fail", message: "Cart item not found" }); return; }
       const product = await ProductModel.findOne({ _id: item.productId, organizationId: org._id }).lean() as any;
       const available = ((product?.inventory as any[]) || [])
@@ -338,7 +341,7 @@ export class StorefrontPublicController {
       }
       await StorefrontCartItemModel.findByIdAndUpdate(item._id, { quantity, lineTotal: item.unitPrice * quantity });
       const allItems = await StorefrontCartItemModel.find({ cartId: item.cartId }).lean() as any[];
-      const subtotal = allItems.reduce((s, i) => s + (i._id === itemId ? item.unitPrice * quantity : i.lineTotal), 0);
+      const subtotal = allItems.reduce((s, i) => s + (i._id === cartItemId ? item.unitPrice * quantity : i.lineTotal), 0);
       await StorefrontCartModel.findByIdAndUpdate(item.cartId, {
         "totals.subtotal": subtotal, "totals.total": subtotal,
       });
@@ -350,7 +353,7 @@ export class StorefrontPublicController {
     try {
       const org = await this.resolveOrg(req.params.organizationSlug as string);
       if (!org) { res.status(404).json({ status: "fail", message: "Storefront not found" }); return; }
-      const item = await StorefrontCartItemModel.findOneAndDelete({ _id: req.params.itemId, organizationId: org._id }).lean() as any;
+      const item = await StorefrontCartItemModel.findOneAndDelete({ _id: req.params.cartItemId, organizationId: org._id }).lean() as any;
       if (!item) { res.status(404).json({ status: "fail", message: "Cart item not found" }); return; }
       const allItems = await StorefrontCartItemModel.find({ cartId: item.cartId }).lean() as any[];
       await StorefrontCartModel.findByIdAndUpdate(item.cartId, {
@@ -462,7 +465,7 @@ export class StorefrontPublicController {
     } catch (err) { next(err); }
   };
 
-  // â”€â”€â”€ 4. Storefront Customer Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 4. Storefront Customer Auth Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -641,7 +644,7 @@ export class StorefrontPublicController {
     } catch (err) { next(err); }
   };
 
-  // â”€â”€â”€ 5. Checkout & Tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 5. Checkout & Tracking Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public checkout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -665,7 +668,7 @@ export class StorefrontPublicController {
     } catch (err) { next(err); }
   };
 
-  // â”€â”€â”€ 6. Dynamic Public Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 6. Dynamic Public Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   public getPublicPage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -673,12 +676,193 @@ export class StorefrontPublicController {
       if (!org) { res.status(404).json({ status: "fail", message: "Storefront not found" }); return; }
       const page = await this.getPageBySlug.execute({ slug: req.params.pageSlug as string, organizationId: String(org._id) });
       if (!page) { res.status(404).json({ status: "fail", message: "Page not found" }); return; }
+
+      // Non-blocking storefront analytics tracking
+      StorefrontPageModel.updateOne(
+        { organizationId: org._id, slug: req.params.pageSlug },
+        { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } }
+      ).catch(() => {});
+
+      const sessionId = (req.headers["x-session-id"] as string) || "";
+      if (sessionId) {
+        StorefrontSessionModel.updateOne(
+          { organizationId: org._id, sessionId },
+          {
+            $inc: { pageViews: 1 },
+            $set: { lastActiveAt: new Date() },
+            $addToSet: { viewedPages: req.params.pageSlug },
+          },
+          { upsert: false }
+        ).catch(() => {});
+      }
+
       res.status(200).json({ status: "success", data: page.props });
+    } catch (err) { next(err); }
+  };
+
+  // ─── 7. Customer Portal Self-Service ──────────────────────────────────────
+
+  public requirePortalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const cp = this.getPortalCustomer(req);
+    if (!cp) {
+      res.status(401).json({ status: "fail", message: "Portal authentication required" });
+      return;
+    }
+    (req as any).portalCustomer = cp;
+    next();
+  };
+
+  public updateMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const { firstName, lastName, phone } = req.body as { firstName?: string; lastName?: string; phone?: string };
+      const customer = await StorefrontCustomerModel.findOneAndUpdate(
+        { _id: cp.customerId, organizationId: cp.organizationId },
+        { $set: { ...(firstName && { firstName }), ...(lastName && { lastName }), ...(phone && { phone }) } },
+        { new: true }
+      ).lean() as any;
+      if (!customer) { res.status(404).json({ status: "fail", message: "Customer not found" }); return; }
+      const { passwordHash: _ph, ...safe } = customer;
+      res.status(200).json({ status: "success", data: safe });
+    } catch (err) { next(err); }
+  };
+
+  public getOrderDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const orderId = req.params.orderId || req.params.saleId;
+      const order = await StorefrontOrderModel.findOne({
+        customerId: cp.customerId,
+        organizationId: cp.organizationId,
+        $or: [{ _id: orderId }, { orderNumber: orderId }],
+      }).lean();
+      if (!order) { res.status(404).json({ status: "fail", message: "Order not found" }); return; }
+      res.status(200).json({ status: "success", data: order });
+    } catch (err) { next(err); }
+  };
+
+  public getInvoice = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const { invoiceId } = req.params;
+      const invoice = await InvoiceModel.findOne({
+        organizationId: cp.organizationId,
+        $or: [{ _id: invoiceId }, { invoiceNumber: invoiceId }],
+        isDeleted: false,
+      }).lean();
+      if (!invoice) { res.status(404).json({ status: "fail", message: "Invoice not found" }); return; }
+      res.status(200).json({ status: "success", data: invoice });
+    } catch (err) { next(err); }
+  };
+
+  public downloadInvoicePdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const { invoiceId } = req.params;
+      const invoice = await InvoiceModel.findOne({
+        organizationId: cp.organizationId,
+        $or: [{ _id: invoiceId }, { invoiceNumber: invoiceId }],
+        isDeleted: false,
+      }).lean();
+      if (!invoice) { res.status(404).json({ status: "fail", message: "Invoice not found" }); return; }
+      res.status(200).json({
+        status: "success",
+        data: {
+          invoiceId: invoice._id,
+          invoiceNumber: invoice.invoiceNumber,
+          grandTotal: invoice.grandTotal,
+          invoiceDate: invoice.invoiceDate,
+          downloadUrl: `/api/v1/store/${req.params.organizationSlug}/portal/invoices/${invoice._id}/download`,
+        },
+      });
+    } catch (err) { next(err); }
+  };
+
+  public listReturns = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const returns = await SalesReturnModel.find({
+        organizationId: cp.organizationId,
+        customerId: cp.customerId,
+      }).sort({ returnDate: -1 }).lean();
+      res.status(200).json({ status: "success", results: returns.length, data: returns });
+    } catch (err) { next(err); }
+  };
+
+  public submitReturn = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const { invoiceId, items, reason, notes } = req.body as {
+        invoiceId: string;
+        items: Array<{ productId: string; name: string; quantity: number; unitPrice: number; refundAmount: number }>;
+        reason: string;
+        notes?: string;
+      };
+
+      if (!invoiceId || !items || items.length === 0 || !reason) {
+        res.status(400).json({ status: "fail", message: "invoiceId, items, and reason are required" });
+        return;
+      }
+
+      const returnNumber = `RET-${Date.now().toString().slice(-6)}`;
+      const totalRefundAmount = items.reduce((s, i) => s + (i.refundAmount || (i.unitPrice * i.quantity)), 0);
+
+      const salesReturn = await SalesReturnModel.create({
+        _id: randomUUID(),
+        organizationId: cp.organizationId,
+        customerId: cp.customerId,
+        invoiceId,
+        returnNumber,
+        returnDate: new Date(),
+        items: items.map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          taxAmount: 0,
+          discountAmount: 0,
+          refundAmount: i.refundAmount || (i.unitPrice * i.quantity),
+        })),
+        subTotal: totalRefundAmount,
+        totalRefundAmount,
+        reason,
+        notes: notes || null,
+        status: 'pending',
+        source: 'storefront_request',
+      });
+
+      res.status(201).json({ status: "success", message: "Return request submitted", data: salesReturn });
+    } catch (err) { next(err); }
+  };
+
+  public getReturnDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cp = this.getPortalCustomer(req);
+      if (!cp) { res.status(401).json({ status: "fail", message: "Unauthorized" }); return; }
+      const { returnId } = req.params;
+      const salesReturn = await SalesReturnModel.findOne({
+        _id: returnId,
+        organizationId: cp.organizationId,
+        customerId: cp.customerId,
+      }).lean();
+      if (!salesReturn) { res.status(404).json({ status: "fail", message: "Return not found" }); return; }
+      res.status(200).json({ status: "success", data: salesReturn });
     } catch (err) { next(err); }
   };
 
   // Legacy fallback aliases
   public getPageHandler = this.getPublicPage;
   public checkoutHandler = this.checkout;
+  public listOrders = this.getOrders;
+  public getMe = this.me;
+  public changePassword = this.updatePassword;
 }
+
+
 

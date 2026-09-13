@@ -140,6 +140,7 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
     connection: deps.connection,
     tokenService: deps.tokenService,
     eventBus: deps.eventBus,
+    productRepo: inventory.productRepo,
   });
 
   // 9. Notification Module

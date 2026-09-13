@@ -32,7 +32,7 @@ export function createAdminPlatformModule(deps: {
     : new MongoAdminPlatformRepository();
 
   const useCases = new AdminPlatformUseCases(repository);
-  const controller = new AdminPlatformController(useCases);
+  const controller = new AdminPlatformController(useCases, deps.tokenService);
   const platformRouter = createAdminPlatformRouter(controller);
   const internalRouter = createInternalPlatformRouter(controller);
   const adminAnalyticsController = new AdminAnalyticsController();

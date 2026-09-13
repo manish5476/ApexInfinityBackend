@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { AdminPlatformUseCases } from '../../application/use-cases/AdminPlatformUseCases';
 import {
@@ -7,22 +8,22 @@ import {
   reportGenerateSchema,
 } from '../validation/adminPlatform.validation';
 import { RequestContextHolder } from '../../../../middleware/requestContext.middleware';
+import { ITokenService } from '../../../../infrastructure/security/ITokenService';
 
 function getContext(req: Request): { organizationId: string; userId: string; user?: any } {
   const ctx = RequestContextHolder.get();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = (req as any).user;
-  const organizationId =
-    ctx?.organizationId ||
-    user?.organizationId ||
-    (req.headers['x-organization-id'] as string) ||
-    '';
+  const organizationId = ctx?.organizationId || user?.organizationId || '';
   const userId = ctx?.userId || user?._id || user?.id || 'system';
   return { organizationId, userId, user };
 }
 
 export class AdminPlatformController {
-  constructor(private readonly useCases: AdminPlatformUseCases) {}
+  constructor(
+    private readonly useCases: AdminPlatformUseCases,
+    private readonly tokenService?: ITokenService
+  ) {}
 
   dashboard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -36,11 +37,24 @@ export class AdminPlatformController {
 
   listAdmins = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userModel = mongoose.models.User;
+      if (!userModel) {
+        res.status(200).json({
+          status: 'success',
+          data: { items: [], total: 0, page: 1, limit: 20 },
+        });
+        return;
+      }
+      const filter = { role: { $in: ['admin', 'superadmin', 'administrator'] } };
+      const [items, total] = await Promise.all([
+        userModel.find(filter).select('-passwordHash').limit(20).lean(),
+        userModel.countDocuments(filter),
+      ]);
       res.status(200).json({
         status: 'success',
         data: {
-          items: [],
-          total: 0,
+          items,
+          total,
           page: 1,
           limit: 20,
         },
@@ -172,7 +186,7 @@ export class AdminPlatformController {
 
   impersonateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { userId } = getContext(req);
+      const { organizationId, userId } = getContext(req);
       await this.useCases.writeAudit({
         actorId: userId,
         action: 'IMPERSONATE',
@@ -180,9 +194,19 @@ export class AdminPlatformController {
         resourceId: req.params.userId,
         metadata: { reason: req.body.reason },
       });
+      const token = this.tokenService
+        ? this.tokenService.generateToken(
+            {
+              userId: req.params.userId || '',
+              organizationId,
+              roles: ['impersonated'],
+            },
+            '15m'
+          )
+        : '';
       res.status(200).json({
         status: 'success',
-        data: { token: 'mock-impersonation-token-short-lived', userId: req.params.userId },
+        data: { token, userId: req.params.userId },
       });
     } catch (err) {
       next(err);

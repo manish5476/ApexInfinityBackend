@@ -45,7 +45,8 @@ export class MongoConnectionManager {
     };
 
     try {
-      const conn = await mongoose.createConnection(uri, options).asPromise();
+      await mongoose.connect(uri, options);
+      const conn = mongoose.connection;
       this.primaryConnection = conn;
       this.connections.set(dbName, conn);
       this.status = DatabaseStatus.CONNECTED;
@@ -96,6 +97,7 @@ export class MongoConnectionManager {
 
   public async disconnect(): Promise<void> {
     this.logger?.info('[mongo] Closing all database connections...');
+    await mongoose.disconnect();
     const closePromises = Array.from(this.connections.values()).map((conn) => conn.close());
     await Promise.all(closePromises);
     this.connections.clear();

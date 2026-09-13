@@ -6,7 +6,7 @@ function getOrgId(req: Request): string {
   const ctx = RequestContextHolder.get();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = (req as any).user;
-  return ctx?.organizationId || user?.organizationId || (req.headers['x-organization-id'] as string) || '';
+  return ctx?.organizationId || user?.organizationId || '';
 }
 
 function parseYear(req: Request): number | undefined {

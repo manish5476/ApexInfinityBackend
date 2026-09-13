@@ -95,3 +95,7 @@ SalesReturnSchema.index({ organizationId: 1, returnDate: -1 });
 export function getSalesReturnModel(connection: mongoose.Connection): Model<ISalesReturnDoc> {
   return connection.models.SalesReturn || connection.model<ISalesReturnDoc>('SalesReturn', SalesReturnSchema);
 }
+
+export const SalesReturnModel =
+  (mongoose.models.SalesReturn as Model<ISalesReturnDoc>) ||
+  mongoose.model<ISalesReturnDoc>('SalesReturn', SalesReturnSchema);

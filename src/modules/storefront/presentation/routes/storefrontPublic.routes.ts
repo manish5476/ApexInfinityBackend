@@ -53,6 +53,27 @@ export function createStorefrontPublicRoutes(controller: StorefrontPublicControl
   router.post('/:organizationSlug/checkout', controller.checkout);
   router.get('/:organizationSlug/orders/:orderNumber', controller.trackOrder);
 
+  // Customer Self-Service Portal (/portal/*) — full legacy parity
+  router.post('/:organizationSlug/portal/register', controller.register);
+  router.post('/:organizationSlug/portal/login', controller.login);
+  router.post('/:organizationSlug/portal/logout', controller.logout);
+  router.post('/:organizationSlug/portal/forgot-password', controller.forgotPassword);
+  router.post('/:organizationSlug/portal/reset-password', controller.resetPassword);
+
+  router.get('/:organizationSlug/portal/me', controller.me);
+  router.put('/:organizationSlug/portal/me', controller.updateMe);
+  router.post('/:organizationSlug/portal/me/change-password', controller.updatePassword);
+
+  router.get('/:organizationSlug/portal/orders', controller.getOrders);
+  router.get('/:organizationSlug/portal/orders/:orderId', controller.getOrderDetail);
+
+  router.get('/:organizationSlug/portal/invoices/:invoiceId', controller.getInvoice);
+  router.get('/:organizationSlug/portal/invoices/:invoiceId/pdf', controller.downloadInvoicePdf);
+
+  router.get('/:organizationSlug/portal/returns', controller.listReturns);
+  router.post('/:organizationSlug/portal/returns', controller.submitReturn);
+  router.get('/:organizationSlug/portal/returns/:returnId', controller.getReturnDetail);
+
   // Page Renderer Catch-all (must remain last)
   router.get('/:organizationSlug/:pageSlug', controller.getPublicPage);
 

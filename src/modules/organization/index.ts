@@ -103,14 +103,11 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
 
   const routes = createOrganizationRoutes(controller, deps.tokenService);
   const extrasRoutes = createOrganizationExtrasRoutes(controller, deps.tokenService);
-  const dummyTokenService: ITokenService = deps.tokenService || {
-    generateToken: () => '',
-    generateRefreshToken: () => '',
-    verifyToken: () => ({} as any),
-    verifyRefreshToken: () => ({} as any),
-  };
-  const branchRoutes = createBranchRoutes(branchController, dummyTokenService);
-  const ownershipRoutes = createOwnershipRoutes(ownershipController, dummyTokenService);
+  if (!deps.tokenService) {
+    throw new Error('ITokenService is required to initialize OrganizationModule');
+  }
+  const branchRoutes = createBranchRoutes(branchController, deps.tokenService);
+  const ownershipRoutes = createOwnershipRoutes(ownershipController, deps.tokenService);
 
   return {
     repository,

@@ -8,11 +8,7 @@ function getContext(req: Request): { organizationId: string; userId: string; use
   const ctx = RequestContextHolder.get();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = (req as any).user;
-  const organizationId =
-    ctx?.organizationId ||
-    user?.organizationId ||
-    (req.headers['x-organization-id'] as string) ||
-    '';
+  const organizationId = ctx?.organizationId || user?.organizationId || '';
   const userId = ctx?.userId || user?._id || user?.id || 'system';
   return { organizationId, userId, user };
 }

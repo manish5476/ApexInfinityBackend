@@ -62,8 +62,8 @@ export class AttendanceMachineController {
 
   public ping = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const orgId = req.headers['x-organization-id'] as string || 'default';
-      const result = await this.attendanceUseCases.pingMachine(orgId, req.params.id!);
+      const context = getHrmsContext();
+      const result = await this.attendanceUseCases.pingMachine(context.organizationId, req.params.id!);
       res.status(200).json(ApiResponseFactory.success(result));
     } catch (err) {
       next(err);
@@ -72,8 +72,8 @@ export class AttendanceMachineController {
 
   public sync = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const orgId = req.headers['x-organization-id'] as string || 'default';
-      const result = await this.attendanceUseCases.syncMachine(orgId, req.params.id!);
+      const context = getHrmsContext();
+      const result = await this.attendanceUseCases.syncMachine(context.organizationId, req.params.id!);
       res.status(200).json(ApiResponseFactory.success(result));
     } catch (err) {
       next(err);

@@ -28,7 +28,7 @@ export function createAnalyticsModule(deps: {
 }): AnalyticsModule {
   const repository: IAnalyticsRepository = deps.useInMemory
     ? new InMemoryAnalyticsRepository()
-    : new MongoAnalyticsRepository();
+    : new MongoAnalyticsRepository(deps.connection);
 
   const useCases = new AnalyticsUseCases(repository);
 

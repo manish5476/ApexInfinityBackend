@@ -12,6 +12,7 @@ import {
   StorefrontOrderModel,
   SmartRuleModel,
   StorefrontPageModel,
+  StorefrontCartModel,
 } from '../../infrastructure/persistence';
 import { CustomerModel } from '../../../crm/infrastructure/persistence';
 
@@ -149,8 +150,36 @@ export class StorefrontAdminController {
     } catch (err) { next(err); }
   };
 
-  public getPageAnalytics = async (_req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ status: 'success', data: { views: 0, uniqueVisitors: 0, conversionRate: 0 } });
+  public getPageAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ctx = RequestContextHolder.get()!;
+      const page = await StorefrontPageModel.findOne({
+        _id: req.params.pageId,
+        organizationId: ctx.organizationId,
+      }).lean() as any;
+
+      if (!page) {
+        res.status(404).json({ status: 'fail', message: 'Page not found' });
+        return;
+      }
+
+      const totalViews = page.viewCount || 0;
+      const lastViewedAt = page.lastViewedAt || null;
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          pageId: req.params.pageId,
+          pageName: page.name,
+          pageStatus: page.status,
+          views: {
+            total: totalViews,
+            lastViewedAt,
+          },
+          conversionRate: 0,
+        },
+      });
+    } catch (err) { next(err); }
   };
 
   public getDraftPreview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -212,7 +241,24 @@ export class StorefrontAdminController {
     try {
       const ctx = RequestContextHolder.get()!;
       const orgId = ctx.organizationId;
-      const [pendingOrders, confirmedOrders, dispatchedOrders, activeAgents, todayRevenue] = await Promise.all([
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // last 30 days
+      const query = { organizationId: orgId, createdAt: { $gte: since } };
+
+      const [
+        pendingOrders,
+        confirmedOrders,
+        dispatchedOrders,
+        activeAgents,
+        todayRevenue,
+        revenueAgg,
+        byStatus,
+        byPayment,
+        recentOrders,
+        customersAgg,
+        abandonedCarts,
+        pagesAgg,
+        totalOrders,
+      ] = await Promise.all([
         StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'placed' }),
         StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'confirmed' }),
         StorefrontOrderModel.countDocuments({ organizationId: orgId, status: 'dispatched' }),
@@ -227,15 +273,105 @@ export class StorefrontAdminController {
           },
           { $group: { _id: null, revenue: { $sum: '$totalAmount' } } },
         ]),
+        StorefrontOrderModel.aggregate([
+          { $match: query },
+          {
+            $group: {
+              _id: null,
+              grossRevenue: { $sum: '$totalAmount' },
+              shippingRevenue: { $sum: '$deliveryFee' },
+              averageOrderValue: { $avg: '$totalAmount' },
+              orders: { $sum: 1 },
+            },
+          },
+        ]),
+        StorefrontOrderModel.aggregate([
+          { $match: query },
+          { $group: { _id: '$status', count: { $sum: 1 }, value: { $sum: '$totalAmount' } } },
+          { $sort: { count: -1 } },
+        ]),
+        StorefrontOrderModel.aggregate([
+          { $match: query },
+          { $group: { _id: '$paymentStatus', count: { $sum: 1 }, value: { $sum: '$totalAmount' } } },
+          { $sort: { count: -1 } },
+        ]),
+        StorefrontOrderModel.find(query)
+          .sort({ createdAt: -1 })
+          .limit(8)
+          .lean(),
+        StorefrontCustomerModel.aggregate([
+          { $match: { organizationId: orgId } },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              guests: { $sum: { $cond: ['$guestAccount', 1, 0] } },
+              converted: { $sum: { $cond: ['$convertedToMainCustomer', 1, 0] } },
+            },
+          },
+        ]),
+        StorefrontCartModel.countDocuments({ organizationId: orgId, status: 'abandoned' }),
+        StorefrontPageModel.aggregate([
+          { $match: { organizationId: orgId } },
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+              views: { $sum: { $ifNull: ['$viewCount', 0] } },
+            },
+          },
+        ]),
+        StorefrontOrderModel.countDocuments(query),
       ]);
+
+      const rev = revenueAgg[0] || { grossRevenue: 0, shippingRevenue: 0, averageOrderValue: 0 };
+      const cust = customersAgg[0] || { total: 0, guests: 0, converted: 0 };
+      const unfulfilledAccepted = confirmedOrders;
+
       res.status(200).json({
         status: 'success',
         data: {
+          // Flat KPIs for simple widgets
           pendingOrders,
           confirmedOrders,
           dispatchedOrders,
           activeAgents,
           todayRevenue: todayRevenue[0]?.revenue ?? 0,
+          // Structured command center analytics
+          generatedAt: new Date().toISOString(),
+          period: { label: 'Last 30 days', since: since.toISOString() },
+          kpis: {
+            totalOrders,
+            grossRevenue: parseFloat((rev.grossRevenue || 0).toFixed(2)),
+            averageOrderValue: parseFloat((rev.averageOrderValue || 0).toFixed(2)),
+            shippingRevenue: parseFloat((rev.shippingRevenue || 0).toFixed(2)),
+            storefrontCustomers: cust.total,
+            convertedCustomers: cust.converted,
+            guestCustomers: cust.guests,
+            abandonedCarts,
+            unfulfilledAccepted,
+            ghostRisk: 0,
+          },
+          byStatus,
+          byPayment,
+          pages: pagesAgg,
+          recentOrders,
+          workQueues: [
+            {
+              key: 'pending-dispatch',
+              title: 'Accepted orders pending dispatch',
+              count: unfulfilledAccepted,
+              severity: unfulfilledAccepted > 0 ? 'warning' : 'success',
+              route: '/storefront/orders',
+            },
+            {
+              key: 'abandoned-carts',
+              title: 'Abandoned carts',
+              count: abandonedCarts,
+              severity: abandonedCarts > 0 ? 'info' : 'success',
+              route: '/storefront/abandoned-carts',
+            },
+          ],
         },
       });
     } catch (err) { next(err); }

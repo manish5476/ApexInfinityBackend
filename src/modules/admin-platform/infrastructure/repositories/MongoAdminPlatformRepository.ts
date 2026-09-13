@@ -254,13 +254,32 @@ export class MongoAdminPlatformRepository implements IAdminPlatformRepository {
       createdAt: { $gte: since24h },
     });
 
+    const userModel = mongoose.models.User;
+    const sessionModel = mongoose.models.Session;
+    const orgModel = mongoose.models.Organization || mongoose.models.FwOrganization;
+
+    const [orgCount, userCount, adminCount, sessionCount] = await Promise.all([
+      orgModel ? orgModel.countDocuments() : 0,
+      userModel ? userModel.countDocuments(orgId ? { organizationId: orgId } : {}) : 0,
+      userModel
+        ? userModel.countDocuments(
+            orgId
+              ? { organizationId: orgId, role: { $in: ['admin', 'superadmin', 'administrator'] } }
+              : { role: { $in: ['admin', 'superadmin', 'administrator'] } }
+          )
+        : 0,
+      sessionModel
+        ? sessionModel.countDocuments(orgId ? { organizationId: orgId, isActive: true } : { isActive: true })
+        : 0,
+    ]);
+
     const mem = process.memoryUsage();
     return {
-      organizations: 1,
-      admins: 1,
-      users: 1,
-      activeSessions: 1,
-      activity24h: 10,
+      organizations: orgCount,
+      admins: adminCount,
+      users: userCount,
+      activeSessions: sessionCount,
+      activity24h: audit24h,
       audit24h,
       redis: false,
       system: {

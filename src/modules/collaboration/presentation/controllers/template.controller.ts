@@ -5,7 +5,7 @@ import { RequestContextHolder } from '../../../../middleware/requestContext.midd
 
 function getContext(req: Request): { organizationId: string; userId: string } {
   const ctx = RequestContextHolder.get();
-  const organizationId = ctx?.organizationId || (req as any).user?.organizationId || (req.headers['x-organization-id'] as string) || '';
+  const organizationId = ctx?.organizationId || (req as any).user?.organizationId || '';
   const userId = ctx?.userId || (req as any).user?._id || (req as any).user?.id || 'system';
   return { organizationId, userId };
 }

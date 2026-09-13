@@ -66,6 +66,7 @@ export interface IStorefrontOrderDoc extends Document<any, any, any> {
   crmCustomerId?: string | null;
   crmSyncStatus: 'pending' | 'synced' | 'failed' | 'pending_phone';
   crmSyncError?: string | null;
+  crmSyncedAt?: Date | null;
   customerId?: string | null;
   sessionId?: string | null;
   cartId?: string | null;
@@ -172,6 +173,7 @@ const StorefrontOrderSchema = new Schema<IStorefrontOrderDoc>({
   crmCustomerId:    { type: String, default: null },
   crmSyncStatus:    { type: String, enum: ['pending', 'synced', 'failed', 'pending_phone'], default: 'pending' },
   crmSyncError:     { type: String, default: null },
+  crmSyncedAt:      { type: Date, default: null },
 
   customerId:       { type: String, default: null },
   sessionId:        { type: String, default: null },
@@ -181,7 +183,7 @@ const StorefrontOrderSchema = new Schema<IStorefrontOrderDoc>({
   customerEmail:    { type: String, required: true },
   customerPhone:    { type: String, default: null },
 
-  billingAddress:  { type: AddressSchema, required: true },
+  billingAddress:  { type: AddressSchema, default: null },
   shippingAddress: { type: AddressSchema, required: true },
   items:           { type: [OrderItemSchema], required: true },
   totals:          { type: TotalsSchema, required: true },
@@ -222,6 +224,9 @@ const StorefrontOrderSchema = new Schema<IStorefrontOrderDoc>({
 
 // Pre-save: keep totalAmount in sync with totals.grandTotal; auto-set timeline entry on creation
 StorefrontOrderSchema.pre('save', function (next) {
+  if (!this.billingAddress && this.shippingAddress) {
+    this.billingAddress = this.shippingAddress;
+  }
   if (this.totals?.grandTotal != null) {
     this.totalAmount = this.totals.grandTotal;
   }
