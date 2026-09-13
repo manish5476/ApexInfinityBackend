@@ -12,6 +12,9 @@ export interface UserPersistenceData {
   roles: string[];
   permissions: string[];
   isActive: boolean;
+  isOwner?: boolean;
+  isSuperAdmin?: boolean;
+  status?: string;
   phone?: string;
   emailVerified: boolean;
   emailVerificationTokenHash?: string;

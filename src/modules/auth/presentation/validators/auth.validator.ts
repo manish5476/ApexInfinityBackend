@@ -18,14 +18,32 @@ export const registerSchema = z
     path: ['passwordConfirm'],
   });
 
-export const loginSchema = z.object({
-  email: z.string().email('Invalid email address format'),
-  password: z.string().min(1, 'Password is required'),
-  organizationSlug: z.string().optional(),
-  orgSlug: z.string().optional(),
-  organizationName: z.string().optional(),
-  uniqueShopId: z.string().optional(),
-});
+export const loginSchema = z
+  .object({
+    email: z.string().email('Invalid email address format'),
+    password: z.string().min(1, 'Password is required'),
+    uniqueShopId: z.string().optional(),
+    shopId: z.string().optional(),
+    organizationSlug: z.string().optional(),
+    orgSlug: z.string().optional(),
+    organizationName: z.string().optional(),
+    organizationId: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      !!(
+        data.uniqueShopId ||
+        data.shopId ||
+        data.organizationSlug ||
+        data.orgSlug ||
+        data.organizationName ||
+        data.organizationId
+      ),
+    {
+      message: 'Shop ID or Organization identifier (e.g. "shivam") is required.',
+      path: ['uniqueShopId'],
+    }
+  );
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Please provide a valid email address.'),

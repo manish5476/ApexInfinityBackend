@@ -35,18 +35,19 @@ export class LoginUseCase implements IUseCase<LoginDto, AuthResultDto> {
     _context?: IApplicationContext
   ): Promise<Result<AuthResultDto>> {
     try {
-      let organizationId: string | undefined;
+      let organizationId: string | undefined = input.organizationId;
       const tenantIdentifier = (
+        input.uniqueShopId ||
+        input.shopId ||
         input.organizationSlug ||
         input.orgSlug ||
-        input.uniqueShopId ||
         input.organizationName
-      )?.trim().toLowerCase();
+      )?.trim();
 
       if (tenantIdentifier && this.organizationRepo) {
-        let org = await this.organizationRepo.findBySlug(tenantIdentifier);
+        let org = await this.organizationRepo.findByShopId(tenantIdentifier);
         if (!org) {
-          org = await this.organizationRepo.findByShopId(tenantIdentifier);
+          org = await this.organizationRepo.findBySlug(tenantIdentifier);
         }
         if (!org) {
           return Result.fail(new NotFoundError('Organization', tenantIdentifier));

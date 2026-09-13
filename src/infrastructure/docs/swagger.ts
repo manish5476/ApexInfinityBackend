@@ -134,19 +134,29 @@ Welcome to the **Apex Infinity** Modular Monolith Platform API Documentation.
       },
       LoginRequest: {
         type: 'object',
-        required: ['email', 'password', 'organizationSlug'],
+        required: ['email', 'password', 'uniqueShopId'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'admin@apex.local', description: 'User registered email address' },
-          password: { type: 'string', format: 'password', example: 'SuperSecurePassword123!', description: 'Account password' },
-          organizationSlug: {
+          email: {
             type: 'string',
-            example: 'apex-main',
-            description: 'Organization unique slug / shop identifier. Required: scopes authentication to the specific organization workspace.',
+            format: 'email',
+            example: 'user@shivam.com',
+            description: 'User registered email address (or phone number)',
+          },
+          password: {
+            type: 'string',
+            format: 'password',
+            example: 'SuperSecurePassword123!',
+            description: 'User account password',
           },
           uniqueShopId: {
             type: 'string',
-            example: 'shop_001',
-            description: 'Unique Shop ID (legacy / frontend alias for organizationSlug in POS / storefront modules)',
+            example: 'shivam',
+            description: 'Your unique Shop ID or shop name (e.g. "shivam"). Required for every user to authenticate into their specific organization workspace.',
+          },
+          organizationSlug: {
+            type: 'string',
+            example: 'shivam',
+            description: 'Organization slug (alias for uniqueShopId, e.g. "shivam")',
           },
         },
       },

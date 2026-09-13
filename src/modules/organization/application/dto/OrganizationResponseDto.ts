@@ -20,6 +20,15 @@ export interface OrganizationResponseDto {
     timezone?: string;
     financialYearStart?: string;
   };
+  owner?: string;
+  mainBranch?: string;
+  branches?: string[];
+  secondaryEmail?: string;
+  secondaryPhone?: string;
+  features?: { whatsappEnabled?: boolean };
+  platformDelivery?: { enabled?: boolean };
+  whatsappWallet?: { credits?: number };
+  superAdminRole?: string;
   createdAt: string;
   updatedAt: string;
 }

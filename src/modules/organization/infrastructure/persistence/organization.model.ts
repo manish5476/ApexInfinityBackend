@@ -11,10 +11,10 @@ export const OrganizationSchema = new Schema<OrganizationDocument>(
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     isActive: { type: Boolean, default: true },
-    primaryEmail: { type: String },
-    primaryPhone: { type: String },
-    gstNumber: { type: String },
-    uniqueShopId: { type: String },
+    primaryEmail: { type: String, trim: true, lowercase: true },
+    primaryPhone: { type: String, trim: true },
+    gstNumber: { type: String, trim: true, uppercase: true },
+    uniqueShopId: { type: String, required: true, unique: true, uppercase: true, trim: true },
     logo: { type: String },
     address: {
       street: String,
@@ -24,10 +24,25 @@ export const OrganizationSchema = new Schema<OrganizationDocument>(
       country: { type: String, default: 'India' },
     },
     settings: {
-      currency: { type: String, default: 'INR' },
+      currency: { type: String, default: 'INR', uppercase: true },
       timezone: { type: String, default: 'Asia/Kolkata' },
-      financialYearStart: { type: String, default: '04-01' },
+      financialYearStart: { type: String, default: 'April' },
     },
+    owner: { type: String, required: true },
+    mainBranch: { type: String },
+    branches: { type: [String], default: [] },
+    secondaryEmail: { type: String, trim: true, lowercase: true },
+    secondaryPhone: { type: String, trim: true },
+    features: {
+      whatsappEnabled: { type: Boolean, default: true }
+    },
+    platformDelivery: {
+      enabled: { type: Boolean, default: false }
+    },
+    whatsappWallet: {
+      credits: { type: Number, default: 0 }
+    },
+    superAdminRole: { type: String, default: 'superadmin' }
   },
   {
     timestamps: true,
@@ -37,7 +52,7 @@ export const OrganizationSchema = new Schema<OrganizationDocument>(
 
 // Indexes
 OrganizationSchema.index({ name: 'text' });
-OrganizationSchema.index({ uniqueShopId: 1 }, { sparse: true });
+OrganizationSchema.index({ uniqueShopId: 1 }, { unique: true });
 
 export function getOrganizationModel(connection: Connection): Model<OrganizationDocument> {
   return (
@@ -49,4 +64,3 @@ export function getOrganizationModel(connection: Connection): Model<Organization
 export const OrganizationModel =
   (mongoose.models.Organization as Model<OrganizationDocument>) ||
   mongoose.model<OrganizationDocument>('Organization', OrganizationSchema);
-

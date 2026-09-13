@@ -30,6 +30,7 @@ export * from './infrastructure';
 export * from './presentation';
 
 import { IEmailSender } from '../../infrastructure/email/IEmailSender';
+import { IPasswordHasher } from '../../infrastructure/security/IPasswordHasher';
 import { getTransferRequestModel } from './infrastructure/persistence/transferRequest.model';
 import { getUserModel } from '../auth/infrastructure/persistence/user.model';
 import { OwnershipController } from './presentation/ownership.controller';
@@ -40,6 +41,7 @@ export interface OrganizationModuleDependencies {
   eventBus?: IEventBus;
   tokenService?: ITokenService;
   emailSender?: IEmailSender;
+  passwordHasher: IPasswordHasher;
   repositoryOverride?: IOrganizationRepository;
   branchRepoOverride?: IBranchRepository;
 }
@@ -74,7 +76,7 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
 
   const branchRepository = deps.branchRepoOverride || new InMemoryBranchRepository();
 
-  const createUseCase = new CreateOrganizationUseCase(repository, mapper, deps.eventBus);
+  const createUseCase = new CreateOrganizationUseCase(deps.connection, repository, mapper, deps.passwordHasher, deps.tokenService!, deps.eventBus);
   const getByIdUseCase = new GetOrganizationByIdUseCase(repository, mapper);
   const updateUseCase = new UpdateOrganizationUseCase(repository);
   const getMyOrgUseCase = new GetMyOrganizationUseCase(repository);
@@ -85,7 +87,7 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
   const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
 
-  const controller = new OrganizationController(createUseCase, getByIdUseCase, updateUseCase, getMyOrgUseCase, repository);
+  const controller = new OrganizationController(createUseCase, getByIdUseCase, updateUseCase, getMyOrgUseCase, repository, deps.connection, deps.passwordHasher);
   const branchController = new BranchController(
     createBranchUseCase,
     listBranchesUseCase,

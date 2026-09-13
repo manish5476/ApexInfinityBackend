@@ -94,6 +94,7 @@ export function buildApplicationContainer(deps: ApplicationDependencies): Applic
     connection: deps.connection,
     tokenService: deps.tokenService,
     eventBus: deps.eventBus,
+    passwordHasher: deps.passwordHasher,
   });
 
   // 3. Auth & Identity Module

@@ -24,6 +24,21 @@ export interface OrganizationPersistenceData {
     timezone?: string;
     financialYearStart?: string;
   };
+  owner?: string;
+  mainBranch?: string;
+  branches?: string[];
+  secondaryEmail?: string;
+  secondaryPhone?: string;
+  features?: {
+    whatsappEnabled?: boolean;
+  };
+  platformDelivery?: {
+    enabled?: boolean;
+  };
+  whatsappWallet?: {
+    credits?: number;
+  };
+  superAdminRole?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +56,15 @@ export class OrganizationMapper implements IMapper<Organization, OrganizationPer
       logo: raw.logo,
       address: raw.address,
       settings: raw.settings,
+      owner: raw.owner,
+      mainBranch: raw.mainBranch,
+      branches: raw.branches,
+      secondaryEmail: raw.secondaryEmail,
+      secondaryPhone: raw.secondaryPhone,
+      features: raw.features,
+      platformDelivery: raw.platformDelivery ? { enabled: raw.platformDelivery.enabled ?? false } : undefined,
+      whatsappWallet: raw.whatsappWallet ? { credits: raw.whatsappWallet.credits ?? 0 } : undefined,
+      superAdminRole: raw.superAdminRole,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });
@@ -59,6 +83,15 @@ export class OrganizationMapper implements IMapper<Organization, OrganizationPer
       logo: entity.logo,
       address: entity.address,
       settings: entity.settings,
+      owner: entity.owner,
+      mainBranch: entity.mainBranch,
+      branches: entity.branches,
+      secondaryEmail: entity.secondaryEmail,
+      secondaryPhone: entity.secondaryPhone,
+      features: entity.features,
+      platformDelivery: entity.platformDelivery,
+      whatsappWallet: entity.whatsappWallet,
+      superAdminRole: entity.superAdminRole,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -77,6 +110,15 @@ export class OrganizationMapper implements IMapper<Organization, OrganizationPer
       logo: entity.logo,
       address: entity.address,
       settings: entity.settings,
+      owner: entity.owner,
+      mainBranch: entity.mainBranch,
+      branches: entity.branches,
+      secondaryEmail: entity.secondaryEmail,
+      secondaryPhone: entity.secondaryPhone,
+      features: entity.features,
+      platformDelivery: entity.platformDelivery,
+      whatsappWallet: entity.whatsappWallet,
+      superAdminRole: entity.superAdminRole,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
     };

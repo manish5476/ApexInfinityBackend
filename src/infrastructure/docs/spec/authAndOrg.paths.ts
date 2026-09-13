@@ -5,8 +5,8 @@ export const authAndOrgPaths: OpenApiPaths = {
   '/auth/login': {
     post: {
       tags: ['Authentication & Identity'],
-      summary: 'Authenticate with email, password, and organization slug (Shop ID)',
-      description: 'Generates access and refresh tokens. In Apex Infinity, the Organization is a mandatory separate entity that defines the tenant boundary. Users must supply their `organizationSlug` (or `uniqueShopId`) alongside `email` and `password` to authenticate into their specific organization workspace.',
+      summary: 'Authenticate with email, password, and Shop ID (e.g. "shivam")',
+      description: 'Generates access and refresh tokens. In Apex Infinity, the Organization is a mandatory separate entity that defines the tenant boundary. Every user belongs to a specific shop. Users must supply their `uniqueShopId` (e.g. "shivam") or `organizationSlug` alongside `email` and `password` to authenticate directly into their specific shop workspace.',
       security: [],
       requestBody: jsonBody('LoginRequest'),
       responses: {
@@ -14,9 +14,9 @@ export const authAndOrgPaths: OpenApiPaths = {
           description: 'Login successful',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } },
         },
-        400: { description: 'Missing required credentials or organization identifier' },
-        401: { description: 'Invalid credentials, organization mismatch, or account suspended' },
-        404: { description: 'Specified organization slug or shop ID does not exist' },
+        400: { description: 'Missing email, password, or Shop ID' },
+        401: { description: 'Invalid credentials, shop mismatch, or account suspended' },
+        404: { description: 'Specified Shop ID or organization does not exist' },
       },
     },
   },

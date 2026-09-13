@@ -28,7 +28,7 @@ export function createOrganizationRoutes(
 
   // Platform admin / ID-based routes
   router.get('/', authGuard, controller.getAllOrganizations);
-  router.get('/:id', controller.getById);
+  router.get('/:id', authGuard, controller.getById);
   router.patch('/:id', authGuard, controller.update);
   router.delete('/:id', authGuard, controller.deleteOrganization);
 
