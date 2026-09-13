@@ -4,3 +4,5 @@ export * from './logging';
 export * from './messaging';
 export * from './security';
 export * from './email';
+export * from './socket';
+export * from './docs';

@@ -1,9 +1,5 @@
 import { z } from 'zod';
 
-export const aiMessageSchema = z.object({
-  message: z.string().min(1).trim(),
-});
-
 export const createChannelSchema = z.object({
   name: z.string().optional(),
   type: z.enum(['public', 'private', 'dm']).optional().default('public'),

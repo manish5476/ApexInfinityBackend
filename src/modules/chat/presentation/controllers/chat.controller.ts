@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AiChatUseCases } from '../../application/use-cases/AiChatUseCases';
+import { ChatUseCases } from '../../application/use-cases/ChatUseCases';
 import {
   createChannelSchema,
   sendMessageSchema,
@@ -7,13 +7,14 @@ import {
 } from '../validation/chat.validation';
 import { RequestContextHolder } from '../../../../middleware/requestContext.middleware';
 
-function getContext(req: Request): { organizationId: string; userId: string } {
+function getContext(req: Request): { organizationId: string; userId: string; role?: string } {
   const ctx = RequestContextHolder.get();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = (req as any).user;
   const organizationId = ctx?.organizationId || user?.organizationId || '';
   const userId = ctx?.userId || user?._id || user?.id || 'system';
-  return { organizationId, userId };
+  const role = user?.role;
+  return { organizationId, userId, role };
 }
 
 function param(req: Request, name: string): string {
@@ -21,7 +22,7 @@ function param(req: Request, name: string): string {
 }
 
 export class ChatController {
-  constructor(private readonly useCases: AiChatUseCases) {}
+  constructor(private readonly useCases: ChatUseCases) {}
 
   listChannels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -92,7 +93,7 @@ export class ChatController {
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
 
-      const result = await this.useCases.getMessages(organizationId, channelId, { page, limit });
+      const result = await this.useCases.getChannelMessages(organizationId, channelId, { page, limit });
       res.status(200).json({
         items: result.items.map(m => m.toPersistence()),
         total: result.total,
@@ -175,9 +176,10 @@ export class ChatController {
 
   deleteMessage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { organizationId } = getContext(req);
+      const { organizationId, userId, role } = getContext(req);
       const messageId = param(req, 'messageId');
-      const message = await this.useCases.deleteMessage(organizationId, messageId);
+      const isAdmin = role === 'admin' || role === 'superadmin' || role === 'administrator';
+      const message = await this.useCases.deleteMessage(organizationId, messageId, userId, isAdmin);
       res.status(200).json(message.toPersistence());
     } catch (err) {
       next(err);

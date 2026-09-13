@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { Connection } from 'mongoose';
 import { IAnalyticsRepository } from './domain/ports/IAnalyticsRepository';
-import { InMemoryAnalyticsRepository } from './infrastructure/repositories/InMemoryAnalyticsRepository';
 import { MongoAnalyticsRepository } from './infrastructure/repositories/MongoAnalyticsRepository';
 import { AnalyticsUseCases } from './application/use-cases/AnalyticsUseCases';
 import { AnalyticsController } from './presentation/controllers/analytics.controller';
@@ -24,11 +23,8 @@ export interface AnalyticsModule {
 
 export function createAnalyticsModule(deps: {
   connection: Connection;
-  useInMemory?: boolean;
 }): AnalyticsModule {
-  const repository: IAnalyticsRepository = deps.useInMemory
-    ? new InMemoryAnalyticsRepository()
-    : new MongoAnalyticsRepository(deps.connection);
+  const repository: IAnalyticsRepository = new MongoAnalyticsRepository(deps.connection);
 
   const useCases = new AnalyticsUseCases(repository);
 

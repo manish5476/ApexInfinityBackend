@@ -25,7 +25,8 @@ const channelSchema = new Schema(
 
 channelSchema.index({ organizationId: 1, members: 1 });
 
-export const ChannelModel = mongoose.model<ChannelDoc>('ChatChannel', channelSchema);
+export const ChannelModel = (mongoose.models.ChatChannel as mongoose.Model<ChannelDoc>) ||
+  mongoose.model<ChannelDoc>('ChatChannel', channelSchema);
 
 export interface MessageDoc extends Document {
   organizationId: mongoose.Types.ObjectId;
@@ -72,4 +73,5 @@ const messageSchema = new Schema(
 
 messageSchema.index({ organizationId: 1, channelId: 1, createdAt: -1 });
 
-export const MessageModel = mongoose.model<MessageDoc>('ChatMessage', messageSchema);
+export const MessageModel = (mongoose.models.ChatMessage as mongoose.Model<MessageDoc>) ||
+  mongoose.model<MessageDoc>('ChatMessage', messageSchema);

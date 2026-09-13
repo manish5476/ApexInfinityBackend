@@ -14,6 +14,7 @@ const environmentSchema = z.object({
 
   // Database
   MONGODB_URI: z.string().default('mongodb://localhost:27017'),
+  DATABASE: z.string().optional(),
   MONGODB_DB_NAME: z.string().default('apex_framework'),
   MONGODB_MAX_POOL_SIZE: z
     .string()
@@ -39,8 +40,24 @@ const environmentSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:4200'),
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:4200,http://localhost:3000')
+    .default('http://localhost:4200,http://localhost:3000,http://localhost:8081')
     .transform((val) => val.split(',').map((o) => o.trim()).filter(Boolean)),
+
+  // Cloudinary Storage (Media & Assets)
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+
+  // Email / SMTP Transport
+  EMAIL_HOST: z.string().optional(),
+  EMAIL_PORT: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 587)),
+  EMAIL_USERNAME: z.string().optional(),
+  EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_FROM_NAME: z.string().default('Apex Infinity'),
+  EMAIL_FROM_ADDRESS: z.string().optional(),
 
   // Logging
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),

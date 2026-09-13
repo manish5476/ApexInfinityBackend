@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import { ApplicationContainer } from './composition/composition-root';
 import { MiddlewarePipeline } from '../middleware/pipeline';
+import { setupSwagger } from '../infrastructure/docs';
 
 export function createApp(container: ApplicationContainer): Express {
   const app = express();
@@ -15,7 +16,10 @@ export function createApp(container: ApplicationContainer): Express {
   app.use('/health', container.modules.health.routes);
   app.use('/api/v1/health', container.modules.health.routes);
 
-  // 3. Domain module routes
+  // 3. OpenAPI 3.0 Interactive Documentation (/api/docs and /api/docs/json)
+  setupSwagger(app);
+
+  // 4. Domain module routes
   const apiRouter = express.Router();
   apiRouter.use('/auth', container.modules.auth.routes);
   apiRouter.use('/users', container.modules.auth.userRoutes);
@@ -74,8 +78,9 @@ export function createApp(container: ApplicationContainer): Express {
   apiRouter.use('/charts', container.modules.analytics.chartRouter);
   apiRouter.use('/customer-analytics', container.modules.analytics.customerAnalyticsRouter);
   apiRouter.use('/feed', container.modules.analytics.feedRouter);
+  apiRouter.use('/ai', container.modules.aiAgent.aiAgentRouter);
   apiRouter.use('/ai-agent', container.modules.aiAgent.aiAgentRouter);
-  apiRouter.use('/chat', container.modules.aiAgent.chatRouter);
+  apiRouter.use('/chat', container.modules.chat.chatRouter);
   apiRouter.use('/search', container.modules.search.routes);
   apiRouter.use('/cron', container.modules.systemOps.cronRoutes);
   apiRouter.use('/logs', container.modules.systemOps.logRoutes);

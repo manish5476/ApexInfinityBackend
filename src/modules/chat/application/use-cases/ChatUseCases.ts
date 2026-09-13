@@ -6,10 +6,10 @@ import {
   Attachment,
 } from '../../domain/entities/Chat';
 import {
-  IAiChatRepository,
+  IChatRepository,
   MessageListQuery,
   MessageListResult,
-} from '../../domain/ports/IAiChatRepository';
+} from '../../domain/ports/IChatRepository';
 
 export interface CreateChannelInput {
   organizationId: string;
@@ -27,40 +27,10 @@ export interface SendMessageInput {
   attachments?: Attachment[];
 }
 
-export class AiChatUseCases {
-  constructor(private readonly repo: IAiChatRepository) {}
+export class ChatUseCases {
+  constructor(private readonly repo: IChatRepository) {}
 
-  // ── AI Agent Assistant ───────────────────────────────────────────────────
-  async processUserMessage(
-    message: string,
-    context: { organizationId: string; branchId?: string; userId?: string },
-  ): Promise<string> {
-    if (!message || !message.trim()) {
-      throw new Error('Message is required');
-    }
-
-    const trimmed = message.trim();
-    const queryContext = await this.repo.queryKnowledgeContext(context.organizationId, trimmed);
-
-    // AI rule-based + context-aware intent processing
-    const lower = trimmed.toLowerCase();
-    if (lower.includes('revenue') || lower.includes('sales')) {
-      return `Based on your recent financial data, your total revenue is ₹1,54,20,000 with a monthly growth of 14.8%. ${queryContext}`;
-    }
-    if (lower.includes('order') || lower.includes('count')) {
-      return `You have 1,420 total orders processed this period with 99.2% accuracy.`;
-    }
-    if (lower.includes('customer')) {
-      return `You currently have 890 active customers with an average LTV of ₹45,000.`;
-    }
-    if (lower.includes('inventory') || lower.includes('stock')) {
-      return `Inventory valuation stands at ₹48,00,000 with 42 items currently flagged for low stock.`;
-    }
-
-    return `Apex AI Assistant: I analyzed your request "${trimmed}". ${queryContext} How else can I assist you with your business today?`;
-  }
-
-  // ── Channel Management ───────────────────────────────────────────────────
+  // ── Channel Operations ───────────────────────────────────────────────────
   async createChannel(input: CreateChannelInput): Promise<Channel> {
     const id = randomUUID();
     const channel = Channel.create(id, {
@@ -118,19 +88,30 @@ export class AiChatUseCases {
     return this.repo.updateChannel(updated);
   }
 
-  // ── Message Management ───────────────────────────────────────────────────
+  // ── Message Operations ───────────────────────────────────────────────────
   async sendMessage(input: SendMessageInput): Promise<ChatMessage> {
-    const channel = await this.getChannel(input.organizationId, input.channelId);
-    if (!channel.isActive) {
-      throw new Error('Channel is disabled');
+    if (!input.body?.trim() && (!input.attachments || input.attachments.length === 0)) {
+      throw new Error('Message body or attachment is required');
+    }
+
+    const channel = await this.repo.findChannelById(input.organizationId, input.channelId);
+    if (!channel || !channel.isActive) {
+      throw new Error('Channel does not exist or is disabled');
     }
 
     const id = randomUUID();
-    const message = ChatMessage.create(id, input);
+    const message = ChatMessage.create(id, {
+      organizationId: input.organizationId,
+      channelId: input.channelId,
+      senderId: input.senderId,
+      body: input.body,
+      attachments: input.attachments,
+    });
+
     return this.repo.saveMessage(message);
   }
 
-  async getMessages(
+  async getChannelMessages(
     orgId: string,
     channelId: string,
     query: MessageListQuery,
@@ -141,25 +122,31 @@ export class AiChatUseCases {
   async editMessage(
     orgId: string,
     messageId: string,
-    senderId: string,
+    userId: string,
     newBody: string,
   ): Promise<ChatMessage> {
-    const msg = await this.repo.findMessageById(orgId, messageId);
-    if (!msg) throw new Error('Message not found');
-    if (msg.senderId !== senderId) {
+    const message = await this.repo.findMessageById(orgId, messageId);
+    if (!message) throw new Error('Message not found');
+    if (message.senderId !== userId) {
       throw new Error('Unauthorized to edit this message');
     }
-
-    const edited = msg.edit(newBody);
-    return this.repo.updateMessage(edited);
+    const updated = message.edit(newBody);
+    return this.repo.updateMessage(updated);
   }
 
-  async deleteMessage(orgId: string, messageId: string): Promise<ChatMessage> {
-    const msg = await this.repo.findMessageById(orgId, messageId);
-    if (!msg) throw new Error('Message not found');
-
-    const deleted = msg.markDeleted();
-    return this.repo.updateMessage(deleted);
+  async deleteMessage(
+    orgId: string,
+    messageId: string,
+    userId: string,
+    isAdmin = false,
+  ): Promise<ChatMessage> {
+    const message = await this.repo.findMessageById(orgId, messageId);
+    if (!message) throw new Error('Message not found');
+    if (message.senderId !== userId && !isAdmin) {
+      throw new Error('Unauthorized to delete this message');
+    }
+    const updated = message.markDeleted();
+    return this.repo.updateMessage(updated);
   }
 
   async markMessageAsRead(
@@ -167,10 +154,9 @@ export class AiChatUseCases {
     messageId: string,
     userId: string,
   ): Promise<ChatMessage> {
-    const msg = await this.repo.findMessageById(orgId, messageId);
-    if (!msg) throw new Error('Message not found');
-
-    const read = msg.markReadBy(userId);
-    return this.repo.updateMessage(read);
+    const message = await this.repo.findMessageById(orgId, messageId);
+    if (!message) throw new Error('Message not found');
+    const updated = message.markRead(userId);
+    return this.repo.updateMessage(updated);
   }
 }

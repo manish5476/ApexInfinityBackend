@@ -1,4 +1,4 @@
-import { Server } from 'http';
+import { createServer, Server } from 'http';
 import { validateEnvironment } from '../config/environment';
 import { StructuredLogger } from '../infrastructure/logging/StructuredLogger';
 import { MongoConnectionManager } from '../infrastructure/database/MongoConnectionManager';
@@ -7,7 +7,8 @@ import { MemoryCache } from '../infrastructure/cache/MemoryCache';
 import { RedisCache } from '../infrastructure/cache/RedisCache';
 import { InMemoryEventBus } from '../infrastructure/messaging/InMemoryEventBus';
 import { JwtTokenService, BcryptPasswordHasher } from '../infrastructure/security';
-import { LoggerEmailSender } from '../infrastructure/email';
+import { IEmailSender, LoggerEmailSender, NodemailerEmailSender } from '../infrastructure/email';
+import { SocketService } from '../infrastructure/socket';
 import { buildApplicationContainer } from './composition/composition-root';
 import { createApp } from './app';
 
@@ -21,10 +22,11 @@ async function bootstrap(): Promise<Server> {
   logger.info(`Environment: ${config.NODE_ENV} | Port: ${config.PORT}`);
   logger.info('====================================================');
 
-  // 2. Initialize Infrastructure: Database
+  // 2. Initialize Infrastructure: Database (supports MONGODB_URI or legacy DATABASE env)
+  const mongoUri = config.DATABASE || config.MONGODB_URI;
   const dbManager = new MongoConnectionManager(logger);
   const connection = await dbManager.connect(
-    config.MONGODB_URI,
+    mongoUri,
     config.MONGODB_DB_NAME,
     config.MONGODB_MAX_POOL_SIZE
   );
@@ -49,9 +51,31 @@ async function bootstrap(): Promise<Server> {
     config.REFRESH_TOKEN_EXPIRES_IN
   );
   const passwordHasher = new BcryptPasswordHasher();
-  const emailSender = new LoggerEmailSender(logger);
 
-  // 5. Build Dependency Graph (Composition Root)
+  // Email Sender: Nodemailer if SMTP configured, else LoggerEmailSender fallback
+  let emailSender: IEmailSender;
+  if (config.EMAIL_HOST) {
+    logger.info(`[email] SMTP configured with host: ${config.EMAIL_HOST}:${config.EMAIL_PORT}`);
+    emailSender = new NodemailerEmailSender(
+      {
+        host: config.EMAIL_HOST,
+        port: config.EMAIL_PORT,
+        username: config.EMAIL_USERNAME,
+        password: config.EMAIL_PASSWORD,
+        fromName: config.EMAIL_FROM_NAME,
+        fromEmail: config.EMAIL_FROM_ADDRESS || config.EMAIL_USERNAME,
+      },
+      logger
+    );
+  } else {
+    logger.info('[email] SMTP not configured. Using LoggerEmailSender fallback.');
+    emailSender = new LoggerEmailSender(logger);
+  }
+
+  // 5. Initialize Socket.IO Real-time Infrastructure
+  const socketService = new SocketService(tokenService, logger);
+
+  // 6. Build Dependency Graph (Composition Root)
   const container = buildApplicationContainer({
     config,
     logger,
@@ -62,19 +86,24 @@ async function bootstrap(): Promise<Server> {
     tokenService,
     passwordHasher,
     emailSender,
+    socketService,
   });
 
-  // 6. Create Express App
+  // 7. Create Express App
   const app = createApp(container);
 
-  // 7. Start HTTP Server
-  const server = app.listen(config.PORT, () => {
+  // 8. Start HTTP Server and Attach Socket.IO
+  const server = createServer(app);
+  socketService.initialize(server);
+
+  server.listen(config.PORT, () => {
     logger.info(`[server] HTTP server listening on http://localhost:${config.PORT}`);
     logger.info(`[server] Health endpoint: http://localhost:${config.PORT}/health`);
     logger.info(`[server] API root: http://localhost:${config.PORT}/api/v1`);
+    logger.info(`[server] Real-time Socket.IO server connected`);
   });
 
-  // 8. Graceful Shutdown Lifecycle
+  // 9. Graceful Shutdown Lifecycle
   let isShuttingDown = false;
 
   const gracefulShutdown = async (signal: string): Promise<void> => {
@@ -88,6 +117,9 @@ async function bootstrap(): Promise<Server> {
       logger.info('[server] HTTP server closed. Draining infrastructure...');
 
       try {
+        await socketService.close();
+        logger.info('[socket] Socket.IO server closed.');
+
         if (cache instanceof RedisCache) {
           await cache.disconnect();
           logger.info('[cache] Redis cache disconnected.');

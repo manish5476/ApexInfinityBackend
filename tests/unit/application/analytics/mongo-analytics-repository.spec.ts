@@ -1,5 +1,4 @@
 import { MongoAnalyticsRepository } from '../../../../src/modules/analytics/infrastructure/repositories/MongoAnalyticsRepository';
-import { InMemoryAnalyticsRepository } from '../../../../src/modules/analytics/infrastructure/repositories/InMemoryAnalyticsRepository';
 import { InvoiceModel, PaymentModel } from '../../../../src/modules/accounting/infrastructure/persistence';
 import {
   ProductModel,
@@ -18,8 +17,8 @@ describe('MongoAnalyticsRepository — Production Data Integrity & Anti-Mock Ver
   });
 
   describe('Anti-Mock Architectural Verification', () => {
-    it('MUST NOT extend InMemoryAnalyticsRepository', () => {
-      expect(repo instanceof InMemoryAnalyticsRepository).toBe(false);
+    it('is a standalone concrete class backed by Mongo aggregations', () => {
+      expect(repo.constructor.name).toBe('MongoAnalyticsRepository');
     });
 
     it('is an independent class with live database aggregation logic', () => {

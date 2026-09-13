@@ -7,16 +7,20 @@ import {
   ChatMessageProps,
 } from '../../domain/entities/Chat';
 import {
-  IAiChatRepository,
+  IChatRepository,
   MessageListQuery,
   MessageListResult,
-} from '../../domain/ports/IAiChatRepository';
+} from '../../domain/ports/IChatRepository';
 import {
   ChannelModel,
   ChannelDoc,
   MessageModel,
   MessageDoc,
 } from '../persistence/chat.model';
+
+function toObjectId(id: string): mongoose.Types.ObjectId | string {
+  return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+}
 
 function toChannelEntity(doc: ChannelDoc): Channel {
   const p: ChannelProps = {
@@ -25,7 +29,7 @@ function toChannelEntity(doc: ChannelDoc): Channel {
     name: doc.name,
     type: doc.type as ChannelType,
     createdBy: doc.createdBy.toString(),
-    members: doc.members.map(m => m.toString()),
+    members: (doc.members || []).map(m => m.toString()),
     isActive: doc.isActive,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -57,15 +61,15 @@ function toMessageEntity(doc: MessageDoc): ChatMessage {
   return ChatMessage.fromPersistence(p);
 }
 
-export class MongoAiChatRepository implements IAiChatRepository {
+export class MongoChatRepository implements IChatRepository {
   async saveChannel(channel: Channel): Promise<Channel> {
     const p = channel.toPersistence();
     const doc = await ChannelModel.create({
-      organizationId: new mongoose.Types.ObjectId(p.organizationId),
+      organizationId: toObjectId(p.organizationId),
       name: p.name,
       type: p.type,
-      createdBy: new mongoose.Types.ObjectId(p.createdBy),
-      members: p.members.map(m => new mongoose.Types.ObjectId(m)),
+      createdBy: toObjectId(p.createdBy),
+      members: p.members.map(toObjectId),
       isActive: p.isActive,
     });
     return toChannelEntity(doc);
@@ -79,25 +83,26 @@ export class MongoAiChatRepository implements IAiChatRepository {
         $set: {
           name: p.name,
           type: p.type,
-          members: p.members.map(m => new mongoose.Types.ObjectId(m)),
+          members: p.members.map(toObjectId),
           isActive: p.isActive,
         },
       },
       { new: true },
     ).lean<ChannelDoc>();
+    if (!doc) throw new Error('Channel not found');
     return toChannelEntity(doc as ChannelDoc);
   }
 
   async findChannelById(orgId: string, channelId: string): Promise<Channel | null> {
-    const doc = await ChannelModel.findOne({ _id: channelId, organizationId: orgId }).lean<ChannelDoc>();
+    const doc = await ChannelModel.findOne({ _id: channelId, organizationId: toObjectId(orgId) }).lean<ChannelDoc>();
     if (!doc) return null;
     return toChannelEntity(doc as ChannelDoc);
   }
 
   async listChannels(orgId: string, userId: string): Promise<Channel[]> {
-    const uId = new mongoose.Types.ObjectId(userId);
+    const uId = toObjectId(userId);
     const docs = await ChannelModel.find({
-      organizationId: orgId,
+      organizationId: toObjectId(orgId),
       $or: [{ type: 'public' }, { members: uId }],
     })
       .sort({ updatedAt: -1 })
@@ -108,12 +113,12 @@ export class MongoAiChatRepository implements IAiChatRepository {
   async saveMessage(message: ChatMessage): Promise<ChatMessage> {
     const p = message.toPersistence();
     const doc = await MessageModel.create({
-      organizationId: new mongoose.Types.ObjectId(p.organizationId),
-      channelId: new mongoose.Types.ObjectId(p.channelId),
-      senderId: new mongoose.Types.ObjectId(p.senderId),
+      organizationId: toObjectId(p.organizationId),
+      channelId: toObjectId(p.channelId),
+      senderId: toObjectId(p.senderId),
       body: p.body,
       attachments: p.attachments,
-      readBy: p.readBy.map(r => new mongoose.Types.ObjectId(r)),
+      readBy: p.readBy.map(toObjectId),
       deleted: p.deleted,
     });
     return toMessageEntity(doc);
@@ -127,18 +132,19 @@ export class MongoAiChatRepository implements IAiChatRepository {
         $set: {
           body: p.body,
           attachments: p.attachments,
-          readBy: p.readBy.map(r => new mongoose.Types.ObjectId(r)),
+          readBy: p.readBy.map(toObjectId),
           deleted: p.deleted,
           editedAt: p.editedAt,
         },
       },
       { new: true },
     ).lean<MessageDoc>();
+    if (!doc) throw new Error('Message not found');
     return toMessageEntity(doc as MessageDoc);
   }
 
   async findMessageById(orgId: string, messageId: string): Promise<ChatMessage | null> {
-    const doc = await MessageModel.findOne({ _id: messageId, organizationId: orgId }).lean<MessageDoc>();
+    const doc = await MessageModel.findOne({ _id: messageId, organizationId: toObjectId(orgId) }).lean<MessageDoc>();
     if (!doc) return null;
     return toMessageEntity(doc as MessageDoc);
   }
@@ -148,7 +154,7 @@ export class MongoAiChatRepository implements IAiChatRepository {
     channelId: string,
     query: MessageListQuery,
   ): Promise<MessageListResult> {
-    const filter = { organizationId: orgId, channelId };
+    const filter = { organizationId: toObjectId(orgId), channelId: toObjectId(channelId) };
     const page = Math.max(query.page || 1, 1);
     const limit = Math.min(query.limit || 50, 100);
 
@@ -167,9 +173,5 @@ export class MongoAiChatRepository implements IAiChatRepository {
       page,
       limit,
     };
-  }
-
-  async queryKnowledgeContext(_orgId: string, query: string): Promise<string> {
-    return `Live CRM Context regarding: "${query}".`;
   }
 }

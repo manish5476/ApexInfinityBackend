@@ -1,6 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  AI Agent & Chat Communication — Domain Entities
-//  Pure domain models — zero infrastructure imports.
+//  Team Chat Module — Domain Entities
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ChannelType = 'public' | 'private' | 'dm';
@@ -160,32 +159,33 @@ export class ChatMessage {
   get channelId(): string { return this._props.channelId; }
   get senderId(): string { return this._props.senderId; }
   get body(): string | undefined { return this._props.body; }
-  get attachments(): Attachment[] | undefined { return this._props.attachments; }
+  get attachments(): Attachment[] { return [...(this._props.attachments ?? [])]; }
   get readBy(): string[] { return [...this._props.readBy]; }
   get deleted(): boolean { return this._props.deleted; }
   get editedAt(): Date | null | undefined { return this._props.editedAt; }
   get createdAt(): Date { return this._props.createdAt; }
   get updatedAt(): Date { return this._props.updatedAt; }
 
-  edit(newBody: string, now = new Date()): ChatMessage {
+  edit(newBody: string): ChatMessage {
     return new ChatMessage({
       ...this._props,
       body: newBody.trim(),
-      editedAt: now,
-      updatedAt: now,
+      editedAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
-  markDeleted(now = new Date()): ChatMessage {
+  markDeleted(): ChatMessage {
     return new ChatMessage({
       ...this._props,
       body: 'This message was deleted',
+      attachments: [],
       deleted: true,
-      updatedAt: now,
+      updatedAt: new Date(),
     });
   }
 
-  markReadBy(userId: string): ChatMessage {
+  markRead(userId: string): ChatMessage {
     if (this._props.readBy.includes(userId)) return this;
     return new ChatMessage({
       ...this._props,

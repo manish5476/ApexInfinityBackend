@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { AiChatUseCases } from '../../application/use-cases/AiChatUseCases';
-import { aiMessageSchema } from '../validation/chat.validation';
+import { AiAgentUseCases } from '../../application/use-cases/AiAgentUseCases';
+import { aiMessageSchema } from '../validation/aiAgent.validation';
 import { RequestContextHolder } from '../../../../middleware/requestContext.middleware';
 
 function getContext(req: Request): { organizationId: string; userId: string; branchId?: string } {
@@ -14,7 +14,7 @@ function getContext(req: Request): { organizationId: string; userId: string; bra
 }
 
 export class AiAgentController {
-  constructor(private readonly useCases: AiChatUseCases) {}
+  constructor(private readonly useCases: AiAgentUseCases) {}
 
   chat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -22,14 +22,14 @@ export class AiAgentController {
       const { message } = aiMessageSchema.parse(req.body);
 
       if (!organizationId) {
-        res.status(400).json({
+        res.status(401).json({
           success: false,
           message: 'Your user account is not associated with an organization.',
         });
         return;
       }
 
-      const reply = await this.useCases.processUserMessage(message, {
+      const result = await this.useCases.processUserMessage(message, {
         organizationId,
         branchId,
         userId,
@@ -37,7 +37,7 @@ export class AiAgentController {
 
       res.status(200).json({
         success: true,
-        reply,
+        ...result,
       });
     } catch (err) {
       next(err);

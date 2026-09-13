@@ -3,7 +3,7 @@ import { Channel, ChatMessage } from '../entities/Chat';
 export interface MessageListQuery {
   page?: number;
   limit?: number;
-  before?: string; // timestamp or message id
+  before?: string;
 }
 
 export interface MessageListResult {
@@ -13,7 +13,7 @@ export interface MessageListResult {
   limit: number;
 }
 
-export interface IAiChatRepository {
+export interface IChatRepository {
   // Channels
   saveChannel(channel: Channel): Promise<Channel>;
   updateChannel(channel: Channel): Promise<Channel>;
@@ -25,7 +25,4 @@ export interface IAiChatRepository {
   updateMessage(message: ChatMessage): Promise<ChatMessage>;
   findMessageById(orgId: string, messageId: string): Promise<ChatMessage | null>;
   listMessages(orgId: string, channelId: string, query: MessageListQuery): Promise<MessageListResult>;
-
-  // AI Agent Knowledge Context
-  queryKnowledgeContext(orgId: string, query: string): Promise<string>;
 }
