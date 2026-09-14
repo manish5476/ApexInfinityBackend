@@ -2,6 +2,8 @@ import cors from 'cors';
 import { RequestHandler } from 'express';
 
 export function createCorsMiddleware(allowedOrigins: string[]): RequestHandler {
+    console.log('CORS allowedOrigins:', allowedOrigins); // temporary debug
+
   return cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, server-to-server)
